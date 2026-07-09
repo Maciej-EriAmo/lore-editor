@@ -2,10 +2,8 @@
 """
 Lore Editor — edytor rozdziałów z panelem lore (bez KarminQL).
 
-    python run_lore_editor.py --project MojaPowiesc
-    python run_lore_editor.py --project MojaPowiesc --project-dir ~/Documents/MojaPowiesc
-    python run_lore_editor.py --project MojaPowiesc --astraedit
-    python run_lore_editor.py --project MojaPowiesc --rpc --host 192.168.1.10
+    cd ~/Documents/MojaPowiesc && lore-editor
+    lore-editor --project-dir .
 """
 
 from __future__ import annotations
@@ -15,7 +13,14 @@ import sys
 from pathlib import Path
 
 
-def _open_lore(project: str, project_dir: str | None, rpc: bool, host: str, port: int, profile: str | None):
+def _open_lore(
+    project: str | None,
+    project_dir: str | None,
+    rpc: bool,
+    host: str,
+    port: int,
+    profile: str | None,
+):
     from lore.store import LoreStore
 
     if rpc:
@@ -30,7 +35,7 @@ def _open_lore(project: str, project_dir: str | None, rpc: bool, host: str, port
 
 
 def _run_standalone(
-    project: str,
+    project: str | None,
     file_path: str | None,
     *,
     project_dir: str | None,
@@ -44,36 +49,61 @@ def _run_standalone(
 
     from lore.document_hooks import on_file_opened, on_file_saved
     from lore.panel import LorePanel
+    from lore.theme import apply_theme, style_text
 
     lore = _open_lore(project, project_dir, rpc, host, port, profile)
+    proj = lore.nazwa_projektu()
     proj_root = lore.katalog_projektu()
 
     root = tk.Tk()
-    root.title(f"Lore Editor — {project}")
-    root.geometry("1100x700")
-    root.configure(bg="#1e1e1e")
+    root.title(f"Lore Editor — {proj}")
+    root.geometry("1150x720")
+    root.minsize(900, 560)
+    apply_theme(root)
+
+    top = ttk.Frame(root, padding=(8, 6))
+    top.pack(fill="x")
+
+    ttk.Label(top, text="Lore Editor", style="Head.TLabel").pack(side="left")
+    ttk.Label(top, text=f"  ·  {proj}", style="Dim.TLabel").pack(side="left")
+
+    toolbar = ttk.Frame(top)
+    toolbar.pack(side="right")
+    status_var = tk.StringVar(value="Gotowy")
 
     paned = ttk.PanedWindow(root, orient=tk.HORIZONTAL)
-    paned.pack(fill="both", expand=True)
+    paned.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
     left = ttk.Frame(paned)
     paned.add(left, weight=3)
 
-    toolbar = ttk.Frame(left)
-    toolbar.pack(fill="x")
-    ttk.Button(toolbar, text="Otwórz…", command=lambda: _open()).pack(side="left", padx=4, pady=4)
-    ttk.Button(toolbar, text="Zapisz", command=lambda: _save()).pack(side="left", padx=4, pady=4)
+    bar = ttk.Frame(left)
+    bar.pack(fill="x", pady=(0, 4))
+    ttk.Button(bar, text="Otwórz…", command=lambda: _open()).pack(side="left", padx=(0, 4))
+    ttk.Button(bar, text="Zapisz", command=lambda: _save()).pack(side="left", padx=(0, 8))
+    file_lbl = ttk.Label(bar, text="(brak pliku)", style="Dim.TLabel")
+    file_lbl.pack(side="left", fill="x", expand=True)
 
-    text = scrolledtext.ScrolledText(
-        left, wrap="word", undo=True, font=("Consolas", 11),
-        bg="#1e1e1e", fg="#d4d4d4", insertbackground="white",
-    )
+    text = scrolledtext.ScrolledText(left, wrap="word", undo=True)
+    style_text(text, height=1, mono=True)
+    text.configure(height=1)
     text.pack(fill="both", expand=True)
 
     state = {"path": file_path or "", "dirty": False}
 
     def current_file() -> str:
         return state["path"]
+
+    def _set_file_label(path: str) -> None:
+        if not path:
+            file_lbl.configure(text="(brak pliku)")
+            return
+        try:
+            rel = Path(path).resolve().relative_to(proj_root)
+            label = str(rel)
+        except ValueError:
+            label = Path(path).name
+        file_lbl.configure(text=label)
 
     panel = LorePanel(paned, lore, get_current_file=current_file)
     paned.add(panel, weight=1)
@@ -94,7 +124,9 @@ def _run_standalone(
         text.insert("1.0", content)
         state["path"] = p
         state["dirty"] = False
-        root.title(f"Lore Editor — {project} — {Path(p).name}")
+        root.title(f"Lore Editor — {proj} — {Path(p).name}")
+        _set_file_label(p)
+        status_var.set(f"Otwarto: {Path(p).name}")
         on_file_opened(lore, p, panel)
 
     def _save():
@@ -103,6 +135,7 @@ def _run_standalone(
             p = filedialog.asksaveasfilename(
                 initialdir=str(proj_root),
                 defaultextension=".txt",
+                filetypes=[("Tekst", "*.txt *.md")],
             )
             if not p:
                 return
@@ -110,6 +143,8 @@ def _run_standalone(
         try:
             Path(p).write_text(text.get("1.0", tk.END), encoding="utf-8")
             state["dirty"] = False
+            _set_file_label(p)
+            status_var.set("Zapisano")
             on_file_saved(lore, p, panel)
         except OSError as e:
             messagebox.showerror("Błąd", str(e))
@@ -119,8 +154,18 @@ def _run_standalone(
         text.delete("1.0", tk.END)
         text.insert("1.0", content)
         state["path"] = file_path
+        _set_file_label(file_path)
         on_file_opened(lore, file_path, panel)
-        root.title(f"Lore Editor — {project} — {Path(file_path).name}")
+        root.title(f"Lore Editor — {proj} — {Path(file_path).name}")
+
+    status = ttk.Frame(root, padding=(8, 4))
+    status.pack(fill="x", side="bottom")
+    ttk.Label(status, textvariable=status_var, style="Dim.TLabel").pack(side="left")
+    ttk.Label(
+        status,
+        text=str(proj_root),
+        style="Dim.TLabel",
+    ).pack(side="right")
 
     def on_close():
         try:
@@ -135,7 +180,7 @@ def _run_standalone(
 
 
 def _run_astraedit(
-    project: str,
+    project: str | None,
     files: list[str],
     *,
     project_dir: str | None,
@@ -153,7 +198,7 @@ def _run_astraedit(
         AstraEditGUI = load_astraedit_gui()
     except ImportError as e:
         print(e)
-        print("Użyj: python run_lore_editor.py --project Nazwa  (standalone)")
+        print("Użyj: lore-editor  (standalone)")
         sys.exit(1)
 
     gui = AstraEditGUI(files or None)
@@ -165,19 +210,26 @@ def _run_astraedit(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Lore Editor — pisarz + Cynober lore")
-    parser.add_argument("--project", "-p", default="MojaPowiesc", help="Nazwa projektu / świata lore")
+    parser = argparse.ArgumentParser(
+        description="Lore Editor — pisarz + Cynober lore",
+        epilog="W katalogu projektu utwórz .lore-project z linią name=NazwaProjektu",
+    )
+    parser.add_argument(
+        "--project", "-p",
+        default=None,
+        help="Nazwa świata (domyślnie: .lore-project lub nazwa folderu)",
+    )
     parser.add_argument(
         "--project-dir",
         default=None,
-        help="Folder projektu (rozdziały + .kafd); domyślnie ~/.lore_editor/worlds/<projekt>",
+        help="Folder projektu; domyślnie cwd lub katalog z .lore-project",
     )
     parser.add_argument("--file", "-f", default=None, help="Plik do otwarcia")
     parser.add_argument("--astraedit", action="store_true", help="Użyj AstraEdit zamiast prostego edytora")
-    parser.add_argument("--rpc", action="store_true", help="Lore na serwerze (cynober-server); rozdziały lokalnie")
-    parser.add_argument("--host", default="127.0.0.1", help="Host cynober-server (--rpc lub sync)")
+    parser.add_argument("--rpc", action="store_true", help="Lore na serwerze (cynober-server)")
+    parser.add_argument("--host", default="127.0.0.1", help="Host cynober-server")
     parser.add_argument("--port", type=int, default=8080, help="Port cynober-server")
-    parser.add_argument("--profile", default=None, help="Profil cynober-client zamiast --host/--port")
+    parser.add_argument("--profile", default=None, help="Profil cynober-client")
     parser.add_argument("files", nargs="*", help="Pliki (tryb --astraedit)")
     args = parser.parse_args()
 

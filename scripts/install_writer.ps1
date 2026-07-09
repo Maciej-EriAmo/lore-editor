@@ -41,6 +41,7 @@ $Sc.Save()
 Write-Host ""
 Write-Host "Gotowe!" -ForegroundColor Green
 Write-Host "  Skrót: $ShortcutPath"
-Write-Host "  Standalone: python run_lore_editor.py --project $Project"
-Write-Host "  AstraEdit:  python run_lore_editor.py --project $Project --astraedit"
+Write-Host "  Z folderu projektu: cd <folder> && lore-editor"
+Write-Host "  Lub utwórz .lore-project z linią: name=$Project"
+Write-Host "  AstraEdit:  lore-editor --astraedit"
 Write-Host "  Serwer zespołu: cynober-server  (port 8080)"

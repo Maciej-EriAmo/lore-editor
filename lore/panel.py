@@ -1,6 +1,5 @@
 """
 Panel lore dla edytora — Tkinter, bez KarminQL.
-Pisarz: dodaj postać, pomysł, powiąż z rozdziałem, przeglądaj sąsiadów.
 """
 
 from __future__ import annotations
@@ -11,6 +10,7 @@ from typing import Callable, Optional
 
 from lore.graph_view import open_graph_window
 from lore.store import LoreStore
+from lore.theme import FONT_SMALL, style_listbox, style_text
 from lore.types import RELACJE_LORE
 
 
@@ -26,7 +26,7 @@ class LorePanel(ttk.Frame):
         on_open_entity: Optional[Callable[[str], None]] = None,
         **kwargs,
     ):
-        super().__init__(parent, **kwargs)
+        super().__init__(parent, padding=4, **kwargs)
         self._lore = lore
         self._get_file = get_current_file or (lambda: "")
         self._on_open = on_open_entity
@@ -35,97 +35,98 @@ class LorePanel(ttk.Frame):
         self.odswiez()
 
     def _build_ui(self) -> None:
-        hdr = ttk.Label(self, text="Lore", font=("Segoe UI", 11, "bold"))
-        hdr.pack(fill="x", padx=6, pady=(6, 2))
-
-        sub = ttk.Label(
-            self,
-            text=f"Projekt: {self._lore.nazwa_projektu()}",
-            font=("Segoe UI", 8),
-        )
-        sub.pack(fill="x", padx=6, pady=(0, 2))
+        hdr = ttk.Frame(self)
+        hdr.pack(fill="x", pady=(0, 6))
+        ttk.Label(hdr, text="Lore", style="Head.TLabel").pack(anchor="w")
         ttk.Label(
-            self,
-            text=str(self._lore.katalog_projektu()),
-            font=("Segoe UI", 7),
-            foreground="#666",
-        ).pack(fill="x", padx=6, pady=(0, 6))
+            hdr,
+            text=self._lore.nazwa_projektu(),
+            style="Dim.TLabel",
+        ).pack(anchor="w")
+        folder = str(self._lore.katalog_projektu())
+        if len(folder) > 42:
+            folder = "…" + folder[-39:]
+        ttk.Label(hdr, text=folder, style="Dim.TLabel").pack(anchor="w")
 
-        btn_row = ttk.Frame(self)
-        btn_row.pack(fill="x", padx=4, pady=2)
-        ttk.Button(btn_row, text="+ Postać", width=9, command=self._dlg_postac).pack(
-            side="left", padx=2
-        )
-        ttk.Button(btn_row, text="+ Pomysł", width=9, command=self._dlg_pomysl).pack(
-            side="left", padx=2
-        )
-        ttk.Button(btn_row, text="+ Wpływ", width=9, command=self._dlg_wplyw).pack(
-            side="left", padx=2
-        )
+        add = ttk.LabelFrame(self, text="Dodaj", padding=4)
+        add.pack(fill="x", pady=(0, 6))
+        row = ttk.Frame(add)
+        row.pack(fill="x")
+        ttk.Button(row, text="+ Postać", command=self._dlg_postac).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(row, text="+ Pomysł", command=self._dlg_pomysl).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(row, text="+ Wpływ", command=self._dlg_wplyw).pack(side="left", expand=True, fill="x", padx=1)
 
-        ttk.Label(self, text="Przy tym rozdziale:", font=("Segoe UI", 9)).pack(
-            anchor="w", padx=6, pady=(8, 2)
-        )
+        self._notebook = ttk.Notebook(self)
+        self._notebook.pack(fill="both", expand=True)
 
-        list_frame = ttk.Frame(self)
-        list_frame.pack(fill="both", expand=True, padx=4, pady=2)
+        tab_lore = ttk.Frame(self._notebook, padding=2)
+        self._notebook.add(tab_lore, text="Rozdział")
 
-        self._list = tk.Listbox(
-            list_frame,
-            font=("Segoe UI", 9),
-            activestyle="none",
-            selectmode=tk.SINGLE,
-            height=12,
-        )
+        ttk.Label(tab_lore, text="Powiązane z tym plikiem:", style="Dim.TLabel").pack(anchor="w", pady=(0, 4))
+
+        list_frame = ttk.Frame(tab_lore)
+        list_frame.pack(fill="both", expand=True)
+        self._list = tk.Listbox(list_frame, font=FONT_SMALL, height=10)
+        style_listbox(self._list)
         scroll = ttk.Scrollbar(list_frame, orient="vertical", command=self._list.yview)
         self._list.configure(yscrollcommand=scroll.set)
         self._list.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
         self._list.bind("<Double-Button-1>", self._on_double_click)
+        self._list.bind("<<ListboxSelect>>", self._on_select)
 
-        act = ttk.Frame(self)
-        act.pack(fill="x", padx=4, pady=4)
-        ttk.Button(act, text="Powiąż z rozdziałem", command=self._powiaz).pack(
-            fill="x", pady=2
-        )
-        ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=2)
-        ttk.Button(act, text="Odśwież", command=self.odswiez).pack(fill="x", pady=2)
-        ttk.Button(act, text="Mapa powiązań", command=self._mapa).pack(fill="x", pady=2)
+        act = ttk.Frame(tab_lore)
+        act.pack(fill="x", pady=6)
+        ttk.Button(act, text="Powiąż z rozdziałem", command=self._powiaz).pack(fill="x", pady=1)
+        ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=1)
+        ttk.Button(act, text="Mapa powiązań", command=self._mapa).pack(fill="x", pady=1)
+        ttk.Button(act, text="Odśwież", command=self.odswiez).pack(fill="x", pady=1)
+
+        self._detail = tk.Text(tab_lore, height=5)
+        style_text(self._detail, height=5)
+        self._detail.pack(fill="x", pady=(4, 0))
+        self._detail.configure(state="disabled")
+
+        tab_search = ttk.Frame(self._notebook, padding=4)
+        self._notebook.add(tab_search, text="Szukaj")
+        sf = ttk.Frame(tab_search)
+        sf.pack(fill="x", pady=4)
+        self._search_var = tk.StringVar()
+        ttk.Entry(sf, textvariable=self._search_var).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        ttk.Button(sf, text="Szukaj", command=self._szukaj).pack(side="left")
+        ttk.Label(
+            tab_search,
+            text="Wyniki pojawią się w zakładce Rozdział.",
+            style="Dim.TLabel",
+            wraplength=240,
+        ).pack(anchor="w", pady=8)
 
         if self._lore.tryb_lokalny():
-            team_hdr = ttk.Label(self, text="Zespół (serwer):", font=("Segoe UI", 9))
-            team_hdr.pack(anchor="w", padx=6, pady=(8, 2))
-            team_row = ttk.Frame(self)
-            team_row.pack(fill="x", padx=4, pady=2)
+            tab_team = ttk.Frame(self._notebook, padding=4)
+            self._notebook.add(tab_team, text="Zespół")
+            ttk.Label(
+                tab_team,
+                text="Sync lore przez cynober-server.\nNajpierw zapisz projekt lokalnie.",
+                style="Dim.TLabel",
+                wraplength=240,
+            ).pack(anchor="w", pady=(0, 8))
+            team_row = ttk.Frame(tab_team)
+            team_row.pack(fill="x", pady=2)
             self._host_var = tk.StringVar(value="127.0.0.1")
             self._port_var = tk.StringVar(value="8080")
-            ttk.Entry(team_row, textvariable=self._host_var, width=14).pack(side="left", fill="x", expand=True)
+            ttk.Label(team_row, text="Host").pack(side="left")
+            ttk.Entry(team_row, textvariable=self._host_var, width=12).pack(side="left", fill="x", expand=True, padx=4)
+            ttk.Label(team_row, text=":").pack(side="left")
             ttk.Entry(team_row, textvariable=self._port_var, width=5).pack(side="left", padx=2)
-            sync_row = ttk.Frame(self)
-            sync_row.pack(fill="x", padx=4, pady=2)
-            ttk.Button(sync_row, text="Wyślij", width=8, command=self._sync_wyslij).pack(side="left", padx=2)
-            ttk.Button(sync_row, text="Pobierz", width=8, command=self._sync_pobierz).pack(side="left", padx=2)
-            ttk.Button(sync_row, text="Synchronizuj", command=self._sync_auto).pack(side="left", padx=2)
+            ttk.Button(tab_team, text="Wyślij na serwer", command=self._sync_wyslij).pack(fill="x", pady=3)
+            ttk.Button(tab_team, text="Pobierz z serwera", command=self._sync_pobierz).pack(fill="x", pady=3)
+            ttk.Button(tab_team, text="Synchronizuj", command=self._sync_auto).pack(fill="x", pady=3)
         else:
             self._host_var = tk.StringVar()
             self._port_var = tk.StringVar()
 
-        ttk.Label(self, text="Szukaj w lore:", font=("Segoe UI", 9)).pack(
-            anchor="w", padx=6, pady=(4, 0)
-        )
-        sf = ttk.Frame(self)
-        sf.pack(fill="x", padx=4, pady=2)
-        self._search_var = tk.StringVar()
-        ttk.Entry(sf, textvariable=self._search_var).pack(side="left", fill="x", expand=True)
-        ttk.Button(sf, text="Szukaj", command=self._szukaj).pack(side="left", padx=2)
-
-        self._detail = tk.Text(self, height=6, font=("Segoe UI", 9), wrap="word")
-        self._detail.pack(fill="x", padx=4, pady=(4, 6))
-        self._detail.configure(state="disabled")
-
-        self._list.bind("<<ListboxSelect>>", self._on_select)
-
     def odswiez(self) -> None:
+        self._notebook.select(0)
         path = self._get_file()
         if path:
             try:
@@ -139,8 +140,12 @@ class LorePanel(ttk.Frame):
             items = []
             self._set_detail(f"Błąd: {e}")
         for it in items:
-            self._list.insert(tk.END, f"{it.get('typ', '?')}: {it['nazwa']}")
+            typ = it.get("typ", "?")
+            self._list.insert(tk.END, f"  {typ:<8}  {it['nazwa']}")
         self._items = items
+        if items and not self._list.curselection():
+            self._list.selection_set(0)
+            self._on_select()
 
     def _selected_name(self) -> Optional[str]:
         sel = self._list.curselection()
@@ -159,7 +164,7 @@ class LorePanel(ttk.Frame):
             data = self._lore.podglad(name)
             lines = [f"【{name}】"]
             for k, v in sorted(data.items()):
-                if k in ("BĄBEL",) or v in (None, ""):
+                if k in ("BĄBEL", "_relations") or v in (None, ""):
                     continue
                 lines.append(f"{k}: {v}")
             self._set_detail("\n".join(lines))
@@ -264,10 +269,11 @@ class LorePanel(ttk.Frame):
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
             return
+        self._notebook.select(0)
         self._list.delete(0, tk.END)
         self._items = [{"nazwa": h, "typ": "?", "opis": ""} for h in hits]
         for h in hits:
-            self._list.insert(tk.END, h)
+            self._list.insert(tk.END, f"  {'?':<8}  {h}")
         self._set_detail(f"Znaleziono: {len(hits)}")
 
     def _mapa(self) -> None:

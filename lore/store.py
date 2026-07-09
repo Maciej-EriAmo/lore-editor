@@ -56,26 +56,28 @@ class LoreStore:
     @classmethod
     def open_local(
         cls,
-        project: str,
+        project: str | None = None,
         *,
         project_dir: str | Path | None = None,
     ) -> "LoreStore":
-        paths = ProjectPaths.resolve(project, project_dir)
+        paths = ProjectPaths.discover(project, project_dir)
         store = cls(connect_local(paths), paths)
         store._ensure_project()
+        if not (paths.root / ProjectPaths.LORE_PROJECT_FILE).is_file():
+            paths.write_marker()
         return store
 
     @classmethod
     def open_rpc(
         cls,
-        project: str,
+        project: str | None = None,
         host: str = "127.0.0.1",
         port: int = 8080,
         *,
         profile: Optional[str] = None,
         project_dir: str | Path | None = None,
     ) -> "LoreStore":
-        paths = ProjectPaths.resolve(project, project_dir)
+        paths = ProjectPaths.discover(project, project_dir)
         store = cls(connect_rpc(host, port, profile=profile), paths)
         store._ensure_project()
         return store

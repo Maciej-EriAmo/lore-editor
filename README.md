@@ -1,98 +1,81 @@
 # Lore Editor
 
-Edytor lore dla **pisarzy** — postacie, pomysły, wpływy, koligacje — na silniku [Cynober DB](https://github.com/Maciej-EriAmo/DBase).  
-**Pisarz nie widzi bazy danych** — tylko przyciski i panel boczny.
+Edytor lore dla **pisarzy** — postacie, pomysły, wpływy, koligacje — na silniku [Cynober DB](https://github.com/Maciej-EriAmo/DBase).
 
-To narzędzie **pisarskie**, nie silnik gry — bez Lua, bez skryptów runtime.
+Narzędzie **pisarskie** (offline-first) — bez Lua, bez silnika gry.
 
-## Wymagania
+## Instalacja
 
 ```bash
 pip install cynober-db>=8.0.1
-pip install -e .   # z katalogu lore-editor
+pip install -e .
 ```
 
-Windows — jednym skryptem:
+Windows:
 
 ```powershell
 .\scripts\install_writer.ps1 -Project MojaPowiesc
 ```
 
-## Jeden folder projektu
+## Projekt — zero konfiguracji
 
-Rozdziały i lore mogą żyć razem:
+**Opcja A:** uruchom z folderu powieści — cwd = projekt:
+
+```powershell
+cd ~/Documents/MojaPowiesc
+lore-editor
+```
+
+Nazwa projektu = nazwa folderu (np. `MojaPowiesc`).
+
+**Opcja B:** plik `.lore-project` w katalogu:
 
 ```
-~/Documents/MojaPowiesc/
+name=MojaPowiesc
+```
+
+Edytor szuka pliku w cwd i katalogach nadrzędnych.
+
+**Opcja C:** jawnie:
+
+```bash
+lore-editor --project-dir ~/Documents/MojaPowiesc
+```
+
+Przy pierwszym uruchomieniu tworzy się `.lore-project` i pliki `.kafd`.
+
+## Layout folderu
+
+```
+MojaPowiesc/
+  .lore-project
   rozdzial_01.txt
   rozdzial_02.md
   MojaPowiesc.kafd
   MojaPowiesc.meta.json
 ```
 
-```bash
-python run_lore_editor.py --project MojaPowiesc --project-dir ~/Documents/MojaPowiesc
-```
-
-Bez `--project-dir` dane trafiają do `~/.lore_editor/worlds/<projekt>/`.
-
-## Szybki start (standalone, offline)
+## Uruchomienie
 
 ```bash
-python run_lore_editor.py --project MojaPowiesc
+lore-editor                          # z katalogu projektu
+lore-editor --file rozdzial_01.txt
+lore-editor --astraedit              # z AstraEdit (osobna instalacja)
+lore-editor --rpc --host 192.168.1.10 # lore na serwerze
 ```
 
-- Lewa strona: rozdział (txt/md)
-- Prawa strona: **Lore** — postacie, pomysły, wpływy przy tym rozdziale
-- **Mapa powiązań** — graf wokół rozdziału lub wybranej postaci
-- Zapis pliku = zapis tekstu + automatyczny zapis lore na dysk
-- **Internet nie jest wymagany**
+Panel ma zakładki: **Rozdział** · **Szukaj** · **Zespół** (sync plików).
 
-## Z AstraEdit
+## Pakiet exe (Nuitka)
 
-```bash
-python run_lore_editor.py --project MojaPowiesc --astraedit rozdzial_01.txt
+```powershell
+.\scripts\build_nuitka.ps1
+# wynik: dist\run_lore_editor.exe
 ```
 
-## Lore na serwerze (opcjonalnie)
-
-Rozdziały nadal lokalnie; lore przez `cynober-server`:
-
-```bash
-cynober-server   # na hoście zespołu
-python run_lore_editor.py --project MojaPowiesc --rpc --host 192.168.1.10
-```
-
-Tryb lokalny + sync plików (Wyślij / Pobierz / Synchronizuj) w panelu — gdy nie używasz `--rpc`.
-
-## API
-
-```python
-from lore import LoreStore
-
-lore = LoreStore.open_local("MojaPowiesc", project_dir="~/Documents/MojaPowiesc")
-lore.otworz_dokument("rozdzial_07.txt")
-lore.dodaj_postac("Kasia", notatka="Protagonistka")
-lore.graf_powiazan("Kasia", promien=2)
-lore.zapisz()
-lore.close()
-```
-
-## Struktura
-
-```
-lore-editor/
-  lore/
-    paths.py            # jeden katalog projektu
-    store.py            # LoreStore — API pisarza
-    panel.py            # Panel Tkinter
-    graph_view.py       # Mapa powiązań
-    team_sync.py        # Sync plików (nie RPC)
-    document_hooks.py   # wspólne open/save
-    astraedit_loader.py # ładowanie AstraEdit
-    backend.py          # Local / RPC Cynober
-  run_lore_editor.py
-```
+Skopiuj exe do folderu projektu lub uruchamiaj z katalogu z `.lore-project`.  
+**Uwaga:** pierwszy build Nuitka trwa długo (~5–15 min); exe ma ~30–80 MB (Cynober w środku).  
+Tryb `--astraedit` nie jest w exe — wymaga osobnego Pythona / AstraEdit.
 
 ## Testy
 
