@@ -86,8 +86,7 @@ def _run_standalone(
     file_lbl.pack(side="left", fill="x", expand=True)
 
     text = scrolledtext.ScrolledText(left, wrap="word", undo=True)
-    style_text(text, height=1, mono=True)
-    text.configure(height=1)
+    style_text(text, height=24, mono=True)
     text.pack(fill="both", expand=True)
 
     state = {"path": file_path or "", "dirty": False, "encoding": "utf-8"}

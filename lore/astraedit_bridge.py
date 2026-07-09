@@ -105,7 +105,7 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     editor_shell.pack(in_=body, side="left", fill="both", expand=True)
 
     right_host = tk.Frame(body, bg=bg, width=LORE_PANEL_WIDTH)
-    right_host.pack(side="right", fill="y")
+    right_host.pack(side="right", fill="both")
     right_host.pack_propagate(False)
 
     right = LorePanel(right_host, lore, get_current_file=current_file)
