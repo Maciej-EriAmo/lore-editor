@@ -1,4 +1,4 @@
-"""Wspólne hooki otwarcia/zapisu pliku — standalone i AstraEdit."""
+"""Wspólne hooki otwarcia/zapisu pliku — edytor standalone."""
 
 from __future__ import annotations
 

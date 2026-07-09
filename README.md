@@ -58,13 +58,21 @@ MojaPowiesc/
 ## Uruchomienie
 
 ```bash
-lore-editor                          # z katalogu projektu
-lore-editor --file rozdzial_01.txt
-lore-editor --astraedit              # z AstraEdit (osobna instalacja)
-lore-editor --rpc --host 192.168.1.10 # lore na serwerze
+lore-editor                              # z katalogu projektu
+lore-editor --file rozdzial_01.txt       # jeden plik
+lore-editor rozdzial_01.txt rozdzial_02.md   # kilka kart
+lore-editor --rpc --host 192.168.1.10    # lore na serwerze
 ```
 
-Panel ma zakładki: **Rozdział** · **Szukaj** · **Zespół** (sync plików).
+### Edytor wbudowany
+
+- **Karty** — wiele plików naraz (`Ctrl+W` zamyka kartę)
+- **Plik** — Nowy, Otwórz, Zapisz, Zapisz jako…
+- **Edycja** — Cofnij/Ponów, Znajdź (`Ctrl+F`), przełącz zawijanie wierszy
+- **Skróty** — `Ctrl+N` `Ctrl+O` `Ctrl+S` `Ctrl+Shift+S`
+- **Status** — liczba słów i znaków, kodowanie pliku
+- **Autosave** — co 60 s (tylko pliki już zapisane na dysku)
+- **Panel lore** — zakładki Rozdział · Szukaj · Zespół
 
 ## Pakiet exe (Nuitka)
 
@@ -74,8 +82,7 @@ Panel ma zakładki: **Rozdział** · **Szukaj** · **Zespół** (sync plików).
 ```
 
 Skopiuj exe do folderu projektu lub uruchamiaj z katalogu z `.lore-project`.  
-**Uwaga:** pierwszy build Nuitka trwa długo (~5–15 min); exe ma ~30–80 MB (Cynober w środku).  
-Tryb `--astraedit` nie jest w exe — wymaga osobnego Pythona / AstraEdit.
+**Uwaga:** pierwszy build Nuitka trwa długo (~5–15 min); exe ma ~30–80 MB (Cynober w środku).
 
 ## Testy
 
