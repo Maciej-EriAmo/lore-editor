@@ -74,11 +74,14 @@ class LorePanel(ttk.Frame):
         scroll.pack(side="right", fill="y")
         self._list.bind("<Double-Button-1>", self._on_double_click)
         self._list.bind("<<ListboxSelect>>", self._on_select)
+        self._list.bind("<Delete>", lambda _e: self._usun_wpis())
 
         act = ttk.Frame(tab_lore)
         act.pack(fill="x", pady=6)
         ttk.Button(act, text="Powiąż z rozdziałem", command=self._powiaz).pack(fill="x", pady=1)
         ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=1)
+        ttk.Button(act, text="Odłącz od rozdziału", command=self._odlacz).pack(fill="x", pady=1)
+        ttk.Button(act, text="Usuń wpis", command=self._usun_wpis).pack(fill="x", pady=1)
         ttk.Button(act, text="Mapa powiązań", command=self._mapa).pack(fill="x", pady=1)
         ttk.Button(act, text="Odśwież", command=self.odswiez).pack(fill="x", pady=1)
 
@@ -235,6 +238,41 @@ class LorePanel(ttk.Frame):
         try:
             self._lore.powiaz_z_dokumentem(name, path)
             self._lore.zapisz()
+            self.odswiez()
+        except Exception as e:
+            messagebox.showerror("Lore", str(e), parent=self)
+
+    def _odlacz(self) -> None:
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo("Lore", "Wybierz element z listy.", parent=self)
+            return
+        path = self._get_file()
+        if not path:
+            messagebox.showinfo("Lore", "Otwórz najpierw rozdział (plik tekstowy).", parent=self)
+            return
+        try:
+            self._lore.odlacz_od_dokumentu(name, path)
+            self._lore.zapisz()
+            self.odswiez()
+        except Exception as e:
+            messagebox.showerror("Lore", str(e), parent=self)
+
+    def _usun_wpis(self) -> None:
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo("Lore", "Wybierz element do usunięcia.", parent=self)
+            return
+        if not messagebox.askyesno(
+            "Usuń wpis",
+            f"Trwale usunąć „{name}” z projektu lore?\nTej operacji nie można cofnąć.",
+            parent=self,
+        ):
+            return
+        try:
+            self._lore.usun_encje(name)
+            self._lore.zapisz()
+            self._set_detail("")
             self.odswiez()
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)

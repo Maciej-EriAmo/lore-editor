@@ -192,6 +192,55 @@ class LoreStore:
         b = self._sanitize_entity(dokad)
         self._run_line(f'POŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
 
+    def rozlacz(self, skad: str, dokad: str, relacja: str) -> None:
+        rel_key = REL_TO_GRAPH.get(relacja, self._slug_rel(relacja))
+        a = self._sanitize_entity(skad)
+        b = self._sanitize_entity(dokad)
+        self._run_line(f'ROZŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
+
+    def usun_encje(self, encja: str) -> None:
+        """Trwale usuwa wpis lore (postać, pomysł, wpływ…)."""
+        name = self._sanitize_entity(encja)
+        self._run_line(f'USUŃ BĄBEL "{_esc(name)}"')
+        if self._opened_doc == name:
+            self._opened_doc = None
+
+    def odlacz_od_dokumentu(
+        self,
+        encja: str,
+        sciezka_pliku: Optional[str] = None,
+    ) -> None:
+        """Usuwa powiązanie z rozdziałem — wpis lore zostaje w projekcie."""
+        doc = self._opened_doc
+        if sciezka_pliku:
+            doc = self._dokument_z_pliku(sciezka_pliku)
+        if not doc:
+            raise LoreBackendError("Brak otwartego dokumentu — otwórz plik w edytorze.")
+        a = self._sanitize_entity(encja)
+        removed = self._rozlacz_jesli_polaczone(a, doc)
+        if not removed:
+            removed = self._rozlacz_jesli_polaczone(doc, a)
+        if not removed:
+            raise LoreBackendError(f"„{encja}” nie jest powiązane z tym rozdziałem.")
+
+    def _rozlacz_jesli_polaczone(self, skad: str, dokad: str) -> bool:
+        try:
+            data = self.podglad(skad)
+        except LoreBackendError:
+            return False
+        removed = False
+        for rel in data.get("_relations") or []:
+            if not isinstance(rel, dict):
+                continue
+            if rel.get("target") != dokad:
+                continue
+            rel_key = rel.get("relation", "")
+            if not rel_key:
+                continue
+            self._run_line(f'ROZŁĄCZ "{_esc(skad)}" Z "{_esc(dokad)}" JAKO "{_esc(rel_key)}"')
+            removed = True
+        return removed
+
     def graf_powiazan(
         self,
         seed: Optional[str] = None,

@@ -83,6 +83,27 @@ class TestLoreStoreLocal(unittest.TestCase):
         self.assertNotEqual(d1, d2)
         lore.close()
 
+    def test_usun_encje(self):
+        lore = self._store()
+        lore.dodaj_postac("DoUsuniecia", notatka="test")
+        self.assertIn("DoUsuniecia", lore.szukaj("test"))
+        lore.usun_encje("DoUsuniecia")
+        self.assertNotIn("DoUsuniecia", lore.szukaj("test"))
+        lore.close()
+
+    def test_odlacz_od_dokumentu(self):
+        lore = self._store()
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Rozdział.", encoding="utf-8")
+        lore.otworz_dokument(path)
+        anna = lore.dodaj_postac("Anna")
+        lore.powiaz_z_dokumentem(anna, path)
+        self.assertIn(anna, [i["nazwa"] for i in lore.lore_przy_dokumencie(path)])
+        lore.odlacz_od_dokumentu(anna, path)
+        self.assertNotIn(anna, [i["nazwa"] for i in lore.lore_przy_dokumencie(path)])
+        self.assertEqual(lore.podglad(anna).get("Typ"), "Postać")
+        lore.close()
+
     def test_plik_wzgledny_w_projekcie(self):
         lore = self._store()
         path = str(self._paths.root / "rozdzial.txt")
