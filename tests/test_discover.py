@@ -43,6 +43,18 @@ class TestDiscover(unittest.TestCase):
             self.assertEqual(p.root, explicit.resolve())
             self.assertEqual(p.name, "Foo")
 
+    def test_open_local_creates_marker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp) / "Nowela"
+            work.mkdir()
+            from lore.store import LoreStore
+
+            lore = LoreStore.open_local(project_dir=work)
+            try:
+                self.assertTrue((work / LORE_PROJECT_FILE).is_file())
+            finally:
+                lore.close()
+
     def test_write_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             p = ProjectPaths.resolve("Test", tmp)

@@ -36,7 +36,7 @@ $args = @(
     "--product-name=Lore Editor",
     "--file-version=0.3.0.0",
     "--product-version=0.3.0.0",
-    "--windows-console-mode=disable",
+    "--windows-console-mode=attach",
     "--nofollow-import-to=AstraEdit",
     "--nofollow-import-to=astraedit_mod"
 ) + $include + @($Entry)

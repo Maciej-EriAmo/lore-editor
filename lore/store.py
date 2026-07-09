@@ -22,7 +22,7 @@ from lore.backend import (
     connect_local,
     connect_rpc,
 )
-from lore.paths import ProjectPaths
+from lore.paths import LORE_PROJECT_FILE, ProjectPaths
 from lore.team_sync import ZespolLore
 from lore.types import (
     POLE_NOTATKA,
@@ -63,7 +63,7 @@ class LoreStore:
         paths = ProjectPaths.discover(project, project_dir)
         store = cls(connect_local(paths), paths)
         store._ensure_project()
-        if not (paths.root / ProjectPaths.LORE_PROJECT_FILE).is_file():
+        if not (paths.root / LORE_PROJECT_FILE).is_file():
             paths.write_marker()
         return store
 
