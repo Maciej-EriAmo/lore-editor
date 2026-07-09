@@ -9,7 +9,10 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 from typing import Callable, Optional
 
+from lore.backend import default_lore_worlds_dir
+from lore.graph_view import open_graph_window
 from lore.store import LoreStore
+from lore.team_sync import ZespolLore
 from lore.types import RELACJE_LORE, TypLore
 
 
@@ -83,6 +86,21 @@ class LorePanel(ttk.Frame):
         )
         ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=2)
         ttk.Button(act, text="Odśwież", command=self.odswiez).pack(fill="x", pady=2)
+        ttk.Button(act, text="Mapa powiązań", command=self._mapa).pack(fill="x", pady=2)
+
+        team_hdr = ttk.Label(self, text="Zespół (serwer):", font=("Segoe UI", 9))
+        team_hdr.pack(anchor="w", padx=6, pady=(8, 2))
+        team_row = ttk.Frame(self)
+        team_row.pack(fill="x", padx=4, pady=2)
+        self._host_var = tk.StringVar(value="127.0.0.1")
+        self._port_var = tk.StringVar(value="8080")
+        ttk.Entry(team_row, textvariable=self._host_var, width=14).pack(side="left", fill="x", expand=True)
+        ttk.Entry(team_row, textvariable=self._port_var, width=5).pack(side="left", padx=2)
+        sync_row = ttk.Frame(self)
+        sync_row.pack(fill="x", padx=4, pady=2)
+        ttk.Button(sync_row, text="Wyślij", width=8, command=self._sync_wyslij).pack(side="left", padx=2)
+        ttk.Button(sync_row, text="Pobierz", width=8, command=self._sync_pobierz).pack(side="left", padx=2)
+        ttk.Button(sync_row, text="Synchronizuj", command=self._sync_auto).pack(side="left", padx=2)
 
         ttk.Label(self, text="Szukaj w lore:", font=("Segoe UI", 9)).pack(
             anchor="w", padx=6, pady=(4, 0)
@@ -243,3 +261,59 @@ class LorePanel(ttk.Frame):
         for h in hits:
             self._list.insert(tk.END, h)
         self._set_detail(f"Znaleziono: {len(hits)}")
+
+    def _mapa(self) -> None:
+        seed = self._selected_name()
+        if not seed:
+            path = self._get_file()
+            if path:
+                try:
+                    seed = self._lore.otworz_dokument(path)
+                except Exception:
+                    seed = None
+        try:
+            open_graph_window(self.winfo_toplevel(), self._lore, seed=seed)
+        except Exception as e:
+            messagebox.showerror("Mapa lore", str(e), parent=self)
+
+    def _zespol(self) -> ZespolLore:
+        wd = default_lore_worlds_dir(self._lore.nazwa_projektu())
+        return ZespolLore(self._lore.nazwa_projektu(), wd)
+
+    def _sync_host_port(self) -> tuple[str, int]:
+        host = self._host_var.get().strip()
+        if not host:
+            raise ValueError("Podaj adres serwera.")
+        try:
+            port = int(self._port_var.get().strip() or "8080")
+        except ValueError as e:
+            raise ValueError("Port musi być liczbą.") from e
+        return host, port
+
+    def _sync_wyslij(self) -> None:
+        try:
+            host, port = self._sync_host_port()
+            self._lore.zapisz()
+            wynik = self._zespol().wyslij_na_serwer(host, port)
+            messagebox.showinfo("Zespół", wynik.komunikat, parent=self)
+        except Exception as e:
+            messagebox.showerror("Zespół", str(e), parent=self)
+
+    def _sync_pobierz(self) -> None:
+        try:
+            host, port = self._sync_host_port()
+            wynik = self._zespol().pobierz_z_serwera(host, port)
+            self.odswiez()
+            messagebox.showinfo("Zespół", wynik.komunikat, parent=self)
+        except Exception as e:
+            messagebox.showerror("Zespół", str(e), parent=self)
+
+    def _sync_auto(self) -> None:
+        try:
+            host, port = self._sync_host_port()
+            self._lore.zapisz()
+            wynik = self._zespol().synchronizuj(host, port)
+            self.odswiez()
+            messagebox.showinfo("Zespół", wynik.komunikat, parent=self)
+        except Exception as e:
+            messagebox.showerror("Zespół", str(e), parent=self)

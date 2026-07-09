@@ -32,8 +32,15 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
 
     root = gui_app.root
 
+    def _active_tab():
+        if hasattr(gui_app, "get_current_tab"):
+            return gui_app.get_current_tab()
+        if hasattr(gui_app, "_get_current_tab"):
+            return gui_app._get_current_tab()
+        return None
+
     def current_file() -> str:
-        tab = gui_app._get_current_tab() if hasattr(gui_app, "_get_current_tab") else None
+        tab = _active_tab()
         if tab is not None:
             return getattr(tab, "file_path", "")
         tabs = getattr(gui_app, "_tabs", [])
@@ -87,6 +94,21 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
         return result
 
     gui_app.save_current = save_with_lore
+
+    if hasattr(gui_app, "on_tab_changed"):
+        orig_tab = gui_app.on_tab_changed
+
+        def tab_with_lore(event=None):
+            orig_tab(event)
+            path = current_file()
+            if path:
+                try:
+                    lore.otworz_dokument(path)
+                    right.odswiez()
+                except Exception:
+                    pass
+
+        gui_app.on_tab_changed = tab_with_lore
 
     # Menu Lore
     try:

@@ -6,3 +6,4 @@ dist/
 .env
 *.kafd
 .pytest_cache/
+vendor/Astraedit/

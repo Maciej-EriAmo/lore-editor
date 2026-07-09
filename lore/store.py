@@ -146,7 +146,13 @@ class LoreStore:
     def podglad(self, encja: str) -> Dict[str, Any]:
         """Szczegóły encji do panelu bocznego."""
         row = self._run_line(f'POKAŻ "{_esc(self._sanitize_name(encja))}"')
-        return dict(row.get("data") or row.get("bubble") or {})
+        raw = row.get("data") or row.get("bubble") or {}
+        if isinstance(raw, dict) and "properties" in raw:
+            out = dict(raw.get("properties") or {})
+            out["_relations"] = list(raw.get("relations") or [])
+            out["BĄBEL"] = encja
+            return out
+        return dict(raw) if isinstance(raw, dict) else {}
 
     # ── Relacje (koligacje, wpływy) ───────────────────────────────────────
 
@@ -164,6 +170,54 @@ class LoreStore:
         a = self._sanitize_name(skad)
         b = self._sanitize_name(dokad)
         self._run_line(f'POŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
+
+    def graf_powiazan(
+        self,
+        seed: Optional[str] = None,
+        promien: int = 2,
+    ) -> Dict[str, Any]:
+        """Węzły i krawędzie do mapy wizualnej (panel „Mapa lore”)."""
+        raw_seed = seed or self._opened_doc
+        if not raw_seed:
+            return {"seed": "", "nodes": [], "edges": []}
+        seed_name = self._sanitize_name(raw_seed)
+        visited: set[str] = {seed_name}
+        frontier: set[str] = {seed_name}
+        for _ in range(max(0, promien)):
+            nxt: set[str] = set()
+            for n in frontier:
+                for s in self.sasiedzi(n, promien=1):
+                    if s not in visited:
+                        nxt.add(s)
+            visited.update(nxt)
+            frontier = nxt
+
+        rel_labels = {v: k for k, v in REL_TO_GRAPH.items()}
+        nodes: List[Dict[str, Any]] = []
+        edges: List[Dict[str, Any]] = []
+        seen_edges: set[tuple] = set()
+
+        for name in sorted(visited):
+            data = self.podglad(name)
+            nodes.append({"id": name, "typ": data.get("Typ", "Inne")})
+            for rel in data.get("_relations") or []:
+                if not isinstance(rel, dict):
+                    continue
+                rel_key = rel.get("relation", "")
+                target = rel.get("target", "")
+                if target not in visited:
+                    continue
+                edge_key = (name, target, rel_key)
+                if edge_key in seen_edges:
+                    continue
+                seen_edges.add(edge_key)
+                edges.append({
+                    "from": name,
+                    "to": target,
+                    "rel": rel_labels.get(rel_key, rel_key.replace("_", " ")),
+                })
+
+        return {"seed": seed_name, "nodes": nodes, "edges": edges}
 
     def sasiedzi(self, encja: str, promien: int = 2) -> List[str]:
         """Encje w pobliżu na grafie lore (do panelu „powiązane”)."""

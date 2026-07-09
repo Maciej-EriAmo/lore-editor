@@ -59,6 +59,25 @@ class TestLoreStoreLocal(unittest.TestCase):
         self.assertIn("Homer", neighbors)
         lore.close()
 
+    def test_graf_powiazan(self):
+        lore = self._store()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+            f.write("Rozdział.")
+            path = f.name
+        try:
+            lore.otworz_dokument(path)
+            anna = lore.dodaj_postac("Anna")
+            lore.powiaz_z_dokumentem(anna, path)
+            doc = lore.otworz_dokument(path)
+            graph = lore.graf_powiazan(doc, promien=2)
+            node_ids = {n["id"] for n in graph["nodes"]}
+            self.assertIn(anna, node_ids)
+            self.assertIn(doc, node_ids)
+            self.assertTrue(any(e["from"] == anna or e["to"] == anna for e in graph["edges"]))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        lore.close()
+
 
 class TestDefaultPaths(unittest.TestCase):
     def test_worlds_dir(self):
