@@ -1,6 +1,6 @@
 """
-Most do AstraEdit — dołącza panel Lore bez znajomości bazy danych.
-Nie przenosi paned_window — edytor + karty + konsola zostają nienaruszone.
+Most do AstraEdit — panel Lore po prawej, edytor AstraEdit po lewej.
+Nie rusza paned_window — tylko dokleja panel po prawej stronie root.
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ def _editor_shell(gui_app):
 
 
 def _restyle_astraedit_tabs(gui_app) -> None:
-    """Upewnij się, że karty notebooka są widoczne po zmianie układu."""
     import tkinter as tk
     from tkinter import ttk
 
@@ -51,23 +50,33 @@ def _restyle_astraedit_tabs(gui_app) -> None:
 
 
 def _fix_vertical_panes(editor_shell) -> None:
-    """Edytor (góra) musi mieć min. wysokość — inaczej znikają karty."""
     try:
         panes = editor_shell.panes()
-        if panes:
-            editor_shell.paneconfigure(panes[0], minsize=280)
-        h = editor_shell.winfo_height()
-        if h > 320 and hasattr(editor_shell, "sash_place"):
-            editor_shell.sash_place(0, 0, int(h * 0.72))
+        if not panes:
+            return
+        h = max(editor_shell.winfo_height(), 400)
+        editor_shell.paneconfigure(panes[0], minsize=260, stretch="always")
+        if len(panes) > 1:
+            editor_shell.paneconfigure(panes[1], minsize=100, stretch="never")
+        if h > 360 and hasattr(editor_shell, "sash_place"):
+            editor_shell.sash_place(0, 0, int(h * 0.74))
     except Exception:
         pass
 
 
+def _schedule_layout_refresh(root, gui_app) -> None:
+    editor_shell = _editor_shell(gui_app)
+
+    def _refresh() -> None:
+        root.update_idletasks()
+        _fix_vertical_panes(editor_shell)
+        _restyle_astraedit_tabs(gui_app)
+
+    root.after_idle(_refresh)
+    root.after(100, _refresh)
+
+
 def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
-    """
-    Dodaje panel lore po prawej stronie istniejącego AstraEditGUI.
-    Wywołaj przed gui.run(), po utworzeniu okna.
-    """
     import tkinter as tk
     from tkinter import filedialog
 
@@ -75,8 +84,6 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     from lore.panel import LorePanel
 
     root = gui_app.root
-    editor_shell = _editor_shell(gui_app)
-    status_bar = getattr(gui_app, "status_bar", None)
     bg = getattr(gui_app, "bg_color", "#1e1e1e")
 
     def _active_tab():
@@ -95,30 +102,14 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
             return getattr(tabs[0], "file_path", "")
         return ""
 
-    editor_shell.pack_forget()
-    if status_bar is not None:
-        status_bar.pack_forget()
-
-    body = tk.Frame(root, bg=bg)
-    body.pack(fill="both", expand=True)
-
-    editor_shell.pack(in_=body, side="left", fill="both", expand=True)
-
-    right_host = tk.Frame(body, bg=bg, width=LORE_PANEL_WIDTH)
-    right_host.pack(side="right", fill="both")
+    right_host = tk.Frame(root, bg=bg, width=LORE_PANEL_WIDTH)
+    right_host.pack(side="right", fill="y")
     right_host.pack_propagate(False)
 
     right = LorePanel(right_host, lore, get_current_file=current_file)
     right.pack(fill="both", expand=True)
 
-    if status_bar is not None:
-        status_bar.pack(side="bottom", fill="x")
-
-    _restyle_astraedit_tabs(gui_app)
-    _fix_vertical_panes(editor_shell)
-    root.update_idletasks()
-    root.after(50, lambda: _fix_vertical_panes(editor_shell))
-    root.after(200, lambda: (_restyle_astraedit_tabs(gui_app), _fix_vertical_panes(editor_shell)))
+    _schedule_layout_refresh(root, gui_app)
 
     orig_open = gui_app.open_file
 
