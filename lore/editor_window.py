@@ -208,7 +208,8 @@ class EditorWindow:
         if content:
             text.insert("1.0", content)
 
-        tab_id = self._notebook.add(frame, text="Bez tytułu")
+        self._notebook.add(frame, text="Bez tytułu")
+        tab_id = str(frame)
         state = _TabState(text=text, frame=frame, path=path, encoding=encoding)
         self._tabs[tab_id] = state
 
