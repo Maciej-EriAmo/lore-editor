@@ -1,6 +1,6 @@
 """
 Most do AstraEdit — dołącza panel Lore bez znajomości bazy danych.
-Obsługuje AstraEdit 4.5+ (paned_window) i starsze wersje (paned).
+Nie przenosi paned_window — edytor + karty + konsola zostają nienaruszone.
 """
 
 from __future__ import annotations
@@ -12,9 +12,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from lore.store import LoreStore
 
+LORE_PANEL_WIDTH = 300
+
 
 def _editor_shell(gui_app):
-    """Główny kontener edytora — różny w zależności od wersji AstraEdit."""
     if hasattr(gui_app, "paned_window"):
         return gui_app.paned_window
     if hasattr(gui_app, "paned"):
@@ -25,19 +26,38 @@ def _editor_shell(gui_app):
     )
 
 
-def _fix_layout(gui_app, outer, editor_shell) -> None:
-    """Po reparentingu wymuś sensowne rozmiary paneli."""
+def _restyle_astraedit_tabs(gui_app) -> None:
+    """Upewnij się, że karty notebooka są widoczne po zmianie układu."""
+    import tkinter as tk
+    from tkinter import ttk
+
     root = gui_app.root
-    root.update_idletasks()
+    bg = getattr(gui_app, "bg_color", "#1e1e1e")
+    fg = getattr(gui_app, "fg_color", "#d4d4d4")
+    style = ttk.Style(root)
     try:
-        w = outer.winfo_width()
-        if w > 400:
-            outer.sash_place(0, max(w - 300, 400), 0)
-    except Exception:
+        style.theme_use("default")
+    except tk.TclError:
         pass
+    style.configure("TNotebook", background=bg, borderwidth=0)
+    style.configure(
+        "TNotebook.Tab",
+        background="#2d2d2d",
+        foreground=fg,
+        padding=[10, 5],
+        borderwidth=0,
+    )
+    style.map("TNotebook.Tab", background=[("selected", "#007acc")])
+
+
+def _fix_vertical_panes(editor_shell) -> None:
+    """Edytor (góra) musi mieć min. wysokość — inaczej znikają karty."""
     try:
+        panes = editor_shell.panes()
+        if panes:
+            editor_shell.paneconfigure(panes[0], minsize=280)
         h = editor_shell.winfo_height()
-        if h > 200 and hasattr(editor_shell, "sash_place"):
+        if h > 320 and hasattr(editor_shell, "sash_place"):
             editor_shell.sash_place(0, 0, int(h * 0.72))
     except Exception:
         pass
@@ -49,7 +69,7 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     Wywołaj przed gui.run(), po utworzeniu okna.
     """
     import tkinter as tk
-    from tkinter import filedialog, ttk
+    from tkinter import filedialog
 
     from lore.document_hooks import on_file_opened, on_file_saved
     from lore.panel import LorePanel
@@ -79,29 +99,26 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     if status_bar is not None:
         status_bar.pack_forget()
 
-    # tk.PanedWindow — ten sam co w AstraEdit; minsize chroni edytor przed zwinięciem
-    outer = tk.PanedWindow(root, orient=tk.HORIZONTAL, sashwidth=4, bg="#333333")
-    outer.pack(fill="both", expand=True)
+    body = tk.Frame(root, bg=bg)
+    body.pack(fill="both", expand=True)
 
-    left = tk.Frame(outer, bg=bg)
-    outer.add(left, minsize=480, stretch="always")
-    editor_shell.pack(in_=left, fill="both", expand=True)
+    editor_shell.pack(in_=body, side="left", fill="both", expand=True)
 
-    right_host = tk.Frame(outer, bg=bg, width=300)
-    outer.add(right_host, minsize=260, stretch="never")
+    right_host = tk.Frame(body, bg=bg, width=LORE_PANEL_WIDTH)
+    right_host.pack(side="right", fill="y")
+    right_host.pack_propagate(False)
 
-    right = LorePanel(
-        right_host,
-        lore,
-        get_current_file=current_file,
-    )
+    right = LorePanel(right_host, lore, get_current_file=current_file)
     right.pack(fill="both", expand=True)
 
     if status_bar is not None:
         status_bar.pack(side="bottom", fill="x")
 
-    _fix_layout(gui_app, outer, editor_shell)
-    root.after(100, lambda: _fix_layout(gui_app, outer, editor_shell))
+    _restyle_astraedit_tabs(gui_app)
+    _fix_vertical_panes(editor_shell)
+    root.update_idletasks()
+    root.after(50, lambda: _fix_vertical_panes(editor_shell))
+    root.after(200, lambda: (_restyle_astraedit_tabs(gui_app), _fix_vertical_panes(editor_shell)))
 
     orig_open = gui_app.open_file
 
@@ -115,11 +132,10 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     gui_app.open_file = open_with_lore
 
     def open_dialog_with_lore():
-        proj = lore.katalog_projektu()
         paths = filedialog.askopenfilenames(
             parent=root,
             title="Otwórz pliki",
-            initialdir=str(proj),
+            initialdir=str(lore.katalog_projektu()),
             filetypes=[("Tekst", "*.txt *.md"), ("Wszystkie", "*.*")],
         )
         for path in paths:

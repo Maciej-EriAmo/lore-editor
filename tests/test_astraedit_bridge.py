@@ -52,8 +52,11 @@ class TestAstraeditBridge(unittest.TestCase):
             gui.root.update_idletasks()
             tab = gui.get_current_tab()
             self.assertIsNotNone(tab)
+            gui.root.geometry("1100x800")
+            gui.root.update_idletasks()
             content = tab.text_area.get("1.0", "end").strip()
             self.assertIn("Tekst rozdziału", content)
+            self.assertGreater(len(gui.notebook.tabs()), 0)
         finally:
             gui.root.destroy()
             lore.close()
