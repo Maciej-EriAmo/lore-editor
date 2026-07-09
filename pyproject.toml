@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lore-editor"
+version = "0.1.0"
+description = "Edytor lore dla pisarzy — panel postaci, pomysłów i wpływów nad Cynober DB"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Maciej Mazur" }]
+dependencies = [
+    "cynober-db>=8.0.1",
+]
+
+[project.optional-dependencies]
+astraedit = []
+
+[project.scripts]
+lore-editor = "run_lore_editor:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lore*"]
+
+[tool.setuptools]
+py-modules = ["run_lore_editor"]
