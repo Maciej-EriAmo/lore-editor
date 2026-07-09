@@ -1,4 +1,4 @@
-# Budowa standalone exe — Lore Editor (bez AstraEdit)
+# Budowa standalone exe - Lore Editor
 # Wymaga: pip install nuitka cynober-db
 param(
     [switch]$OneFile
@@ -9,10 +9,9 @@ $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Dist = Join-Path $RepoRoot "dist"
 $Entry = Join-Path $RepoRoot "run_lore_editor.py"
 
-Write-Host "=== Lore Editor — Nuitka ===" -ForegroundColor Cyan
+Write-Host "=== Lore Editor - Nuitka ===" -ForegroundColor Cyan
 python -m pip install --upgrade nuitka ordered-set zstandard 2>&1 | Out-Null
 
-# lore = pakiet; cynober/karmazyn = pojedyncze moduły .py
 $modules = @(
     "lore",
     "cynober_worlds", "cynober_world_shards", "cynober_auto_flush",
@@ -25,7 +24,7 @@ $modules = @(
 $include = @("--include-package=lore")
 $include += $modules | Where-Object { $_ -ne "lore" } | ForEach-Object { "--include-module=$_" }
 
-$args = @(
+$nuitkaArgs = @(
     "-m", "nuitka",
     "--standalone",
     "--assume-yes-for-downloads",
@@ -34,21 +33,19 @@ $args = @(
     "--remove-output",
     "--company-name=LoreEditor",
     "--product-name=Lore Editor",
-    "--file-version=0.3.0.0",
-    "--product-version=0.3.0.0",
-    "--windows-console-mode=attach",
-    "--nofollow-import-to=AstraEdit",
-    "--nofollow-import-to=astraedit_mod"
+    "--file-version=0.4.0.0",
+    "--product-version=0.4.0.0",
+    "--windows-console-mode=disable"
 ) + $include + @($Entry)
 
 if ($OneFile) {
-    $args = @("-m", "nuitka", "--onefile") + $args[2..($args.Length - 1)]
+    $nuitkaArgs = @("-m", "nuitka", "--onefile") + $nuitkaArgs[2..($nuitkaArgs.Length - 1)]
 }
 
-Write-Host "Nuitka start (5–15 min)..."
+Write-Host 'Nuitka start - moze potrwac 5-15 min...'
 Push-Location $RepoRoot
 try {
-    & python @args
+    & python @nuitkaArgs
     if ($LASTEXITCODE -ne 0) { throw "Nuitka exit $LASTEXITCODE" }
 } finally {
     Pop-Location
@@ -57,11 +54,11 @@ try {
 $exe = Get-ChildItem -Path $Dist -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($exe) {
     $mb = [math]::Round($exe.Length / 1MB, 1)
-    Write-Host "Gotowe: $($exe.FullName) ($mb MB)" -ForegroundColor Green
+    Write-Host "Gotowe: $($exe.FullName) - $mb MB" -ForegroundColor Green
 } else {
     $bin = Join-Path $Dist "run_lore_editor.dist"
     if (Test-Path $bin) {
-        Write-Host "Gotowe (folder): $bin" -ForegroundColor Green
+        Write-Host "Gotowe folder: $bin" -ForegroundColor Green
     } else {
         throw "Brak wyniku w $Dist"
     }
