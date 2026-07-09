@@ -82,7 +82,7 @@ class EditorWindow:
         tab = self._current_tab()
         return tab.path if tab else ""
 
-    def _tab_label(self, tab: _TabState) -> str:
+    def _tab_display_name(self, tab: _TabState) -> str:
         if tab.path:
             try:
                 name = Path(tab.path).resolve().relative_to(self._proj_root)
@@ -92,6 +92,9 @@ class EditorWindow:
         else:
             label = "Bez tytułu"
         return f"{label}*" if tab.dirty else label
+
+    def _tab_label(self, tab: _TabState) -> str:
+        return f"{self._tab_display_name(tab)}  ×"
 
     def _update_tab_title(self, tab_id: str) -> None:
         tab = self._tabs.get(tab_id)
@@ -143,6 +146,7 @@ class EditorWindow:
         ttk.Button(toolbar, text="Otwórz…", command=self._open_dialog).pack(side="left", padx=2)
         ttk.Button(toolbar, text="Zapisz", command=self._save).pack(side="left", padx=2)
         ttk.Button(toolbar, text="Zapisz jako…", command=self._save_as).pack(side="left", padx=2)
+        ttk.Button(toolbar, text="Zamknij kartę", command=self._close_current_tab).pack(side="left", padx=2)
 
         paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         paned.pack(fill="both", expand=True, padx=6, pady=(0, 6))
@@ -153,6 +157,8 @@ class EditorWindow:
         self._notebook = ttk.Notebook(left)
         self._notebook.pack(fill="both", expand=True)
         self._notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+        self._notebook.bind("<Button-1>", self._on_tab_click, add="+")
+        self._notebook.bind("<Button-2>", self._on_tab_middle_click, add="+")
 
         self._panel = LorePanel(paned, self._lore, get_current_file=self._current_file)
         paned.add(self._panel, weight=1)
@@ -386,7 +392,7 @@ class EditorWindow:
     def _confirm_save_tab(self, tab: _TabState) -> bool:
         answer = messagebox.askyesnocancel(
             "Niezapisane zmiany",
-            f"Zapisać zmiany w „{self._tab_label(tab).rstrip('*')}”?",
+            f"Zapisać zmiany w „{self._tab_display_name(tab).rstrip('*')}”?",
             parent=self.root,
         )
         if answer is None:
@@ -394,6 +400,38 @@ class EditorWindow:
         if answer and not self._save_tab(tab):
             return False
         return True
+
+    def _tab_id_at(self, event: tk.Event) -> Optional[str]:
+        try:
+            clicked = self._notebook.tk.call(self._notebook._w, "identify", "tab", event.x, event.y)
+        except tk.TclError:
+            return None
+        if clicked in ("", None):
+            return None
+        tabs = self._notebook.tabs()
+        try:
+            return tabs[int(clicked)]
+        except (ValueError, IndexError, tk.TclError):
+            return clicked if clicked in tabs else None
+
+    def _on_tab_click(self, event: tk.Event) -> Optional[str]:
+        tab_id = self._tab_id_at(event)
+        if not tab_id:
+            return None
+        bbox = self._notebook.bbox(tab_id)
+        if not bbox:
+            return None
+        x, _y, width, _h = bbox
+        if event.x > x + width - 22:
+            self._close_tab_by_id(tab_id)
+            return "break"
+        return None
+
+    def _on_tab_middle_click(self, event: tk.Event) -> str:
+        tab_id = self._tab_id_at(event)
+        if tab_id:
+            self._close_tab_by_id(tab_id)
+        return "break"
 
     def _close_tab_by_id(self, tab_id: str) -> bool:
         tab = self._tabs.get(tab_id)
@@ -404,10 +442,13 @@ class EditorWindow:
             if not self._confirm_save_tab(tab):
                 return False
         self._notebook.forget(tab_id)
-        tab.text.destroy()
+        tab.frame.destroy()
         del self._tabs[tab_id]
         if not self._tabs:
             self._new_tab()
+        else:
+            self._update_window_title()
+            self._update_status()
         return True
 
     def _close_current_tab(self) -> None:

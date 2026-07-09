@@ -66,7 +66,7 @@ lore-editor --rpc --host 192.168.1.10    # lore na serwerze
 
 ### Edytor wbudowany
 
-- **Karty** — wiele plików naraz (`Ctrl+W` zamyka kartę)
+- **Karty** — wiele plików naraz; zamknij: `×` na karcie, `Ctrl+W`, środkowy przycisk myszy
 - **Plik** — Nowy, Otwórz, Zapisz, Zapisz jako…
 - **Edycja** — Cofnij/Ponów, Znajdź (`Ctrl+F`), przełącz zawijanie wierszy
 - **Skróty** — `Ctrl+N` `Ctrl+O` `Ctrl+S` `Ctrl+Shift+S`
