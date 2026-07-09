@@ -93,7 +93,7 @@ lore-editor --rpc --host 192.168.1.10    # lore na serwerze
 | **Powiąż inny wpis…** | Wpisz nazwę istniejącej postaci/pomysłu — przydatne gdy lista rozdziału jest pusta |
 | **Połącz z…** | Połączenie dwóch wpisów lore (np. postać ↔ wpływ), niezależnie od pliku |
 | **Odłącz od rozdziału** | Usuwa powiązanie z tym rozdziałem; wpis zostaje w projekcie |
-| **Usuń wpis** | Trwale kasuje element z grafu lore (`Delete` na liście) |
+| **Usuń wpis** | Trwale kasuje element z grafu lore (`Delete` na liście); czyści relacje i przebudowuje indeksy |
 | **Mapa powiązań** | Graficzny podgląd koligacji |
 | **Szukaj** | Znajdź wpisy po fragmencie tekstu, potem powiąż z rozdziałem |
 

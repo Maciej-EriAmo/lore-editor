@@ -100,6 +100,7 @@ class LoreStore:
 
     def zapisz(self) -> None:
         """Zapis lore na dysk (pisarz: „Zapisz projekt”)."""
+        self._odswiez_indeksy()
         self._run_line("ZAPISZ ŚWIAT")
 
     def nazwa_projektu(self) -> str:
@@ -205,9 +206,13 @@ class LoreStore:
     def usun_encje(self, encja: str) -> None:
         """Trwale usuwa wpis lore (postać, pomysł, wpływ…)."""
         name = self._sanitize_entity(encja)
+        if not self.encja_istnieje(name):
+            raise LoreBackendError(f"Nie ma wpisu „{encja}”.")
+        self._rozlacz_wszystkie_relacje(name)
         self._run_line(f'USUŃ BĄBEL "{_esc(name)}"')
         if self._opened_doc == name:
             self._opened_doc = None
+        self._odswiez_indeksy()
 
     def odlacz_od_dokumentu(
         self,
@@ -226,6 +231,30 @@ class LoreStore:
             removed = self._rozlacz_jesli_polaczone(doc, a)
         if not removed:
             raise LoreBackendError(f"„{encja}” nie jest powiązane z tym rozdziałem.")
+        self._odswiez_indeksy()
+
+    def _rozlacz_wszystkie_relacje(self, encja: str) -> None:
+        """Usuwa relacje przychodzące i wychodzące przed skasowaniem bąbla."""
+        name = self._sanitize_entity(encja)
+        for other in list(self.wszystkie_wpisy()):
+            if other == name:
+                continue
+            self._rozlacz_jesli_polaczone(other, name)
+            self._rozlacz_jesli_polaczone(name, other)
+        if self.encja_istnieje(name):
+            try:
+                data = self.podglad(name)
+                for rel in list(data.get("_relations") or []):
+                    if not isinstance(rel, dict):
+                        continue
+                    target = rel.get("target")
+                    rel_key = rel.get("relation", "")
+                    if target and rel_key:
+                        self._run_line(
+                            f'ROZŁĄCZ "{_esc(name)}" Z "{_esc(target)}" JAKO "{_esc(rel_key)}"'
+                        )
+            except LoreBackendError:
+                pass
 
     def _rozlacz_jesli_polaczone(self, skad: str, dokad: str) -> bool:
         try:
@@ -419,6 +448,17 @@ class LoreStore:
         return list(row.get("matches") or [])
 
     # ── Wewnętrzne ────────────────────────────────────────────────────────
+
+    def _odswiez_indeksy(self) -> None:
+        """Przebuduj inv_index/atom_index z aktualnych bąbli — usuwa martwe wpisy."""
+        if not self.tryb_lokalny():
+            return
+        from cynober_worlds import rebuild_all_indexes
+
+        world = self._backend._attach()  # type: ignore[attr-defined]
+        with world.runtime.lock:
+            rebuild_all_indexes(world.runtime.engine.api)
+        self._backend._registry.mark_dirty(world.name)  # type: ignore[attr-defined]
 
     def _run(self, script: str, *, strict: bool = True) -> List[dict]:
         return self._backend.execute(script.strip(), strict=strict)

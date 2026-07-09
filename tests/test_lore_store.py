@@ -1,5 +1,6 @@
 """Testy LoreStore — API pisarza bez serwera."""
 
+import json
 import os
 import tempfile
 import unittest
@@ -116,6 +117,23 @@ class TestLoreStoreLocal(unittest.TestCase):
         self.assertIn("DoUsuniecia", lore.szukaj("test"))
         lore.usun_encje("DoUsuniecia")
         self.assertNotIn("DoUsuniecia", lore.szukaj("test"))
+        lore.close()
+
+    def test_usun_czysci_relacje_i_meta(self):
+        lore = self._store()
+        lore.dodaj_postac("Anna")
+        lore.dodaj_postac("Boris")
+        lore.polacz("Anna", "Boris", "koliguje z")
+        lore.usun_encje("Anna")
+        lore.zapisz()
+        self.assertNotIn("Anna", lore.wszystkie_wpisy())
+        self.assertNotIn("Anna", lore.sasiedzi("Boris"))
+        meta_path = self._paths.root / f"{self._paths.name}.meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        for prop, vals in meta["query_indexes"]["inv_index"].items():
+            for key, bubbles in vals.items():
+                self.assertTrue(bubbles, f"pusty wpis indeksu: {prop}/{key!r}")
+                self.assertNotIn("Anna", bubbles)
         lore.close()
 
     def test_odlacz_od_dokumentu(self):
