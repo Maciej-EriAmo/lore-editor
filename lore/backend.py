@@ -9,12 +9,14 @@ from typing import Any, List, Optional, Protocol
 
 from cynober_worlds import WorldRegistry, validate_world_name
 
+from lore.paths import ProjectPaths
+
 
 class LoreBackendError(RuntimeError):
     pass
 
 
-class _EngineBackend(Protocol):
+class EngineBackend(Protocol):
     def execute(self, script: str, *, strict: bool = False) -> List[dict]: ...
     def close(self) -> None: ...
 
@@ -37,13 +39,19 @@ _WORLD_SELECT_RE = re.compile(
 class LocalLoreBackend:
     """Trwały świat lore lokalnie — bez serwera TCP."""
 
-    def __init__(self, worlds_dir: Path | str, project: str):
-        self._worlds_dir = Path(worlds_dir)
+    def __init__(self, paths: ProjectPaths):
+        self._paths = paths
+        self._worlds_dir = paths.root
         self._worlds_dir.mkdir(parents=True, exist_ok=True)
-        os.environ["CYNOBER_WORLDS_DIR"] = str(self._worlds_dir.resolve())
+        if "CYNOBER_WORLDS_DIR" not in os.environ:
+            os.environ["CYNOBER_WORLDS_DIR"] = str(self._worlds_dir)
         self._registry = WorldRegistry(self._worlds_dir)
-        self._project = validate_world_name(project)
+        self._project = paths.name
         self._world = None
+
+    @property
+    def worlds_dir(self) -> Path:
+        return self._worlds_dir
 
     def _attach(self):
         if self._world is not None:
@@ -124,7 +132,7 @@ class LocalLoreBackend:
 
 
 class RpcLoreBackend:
-    """Zespół przez cynober-server — pisarz nadal nie widzi KarminQL."""
+    """Lore na cynober-server — rozdziały nadal lokalne na dysku pisarza."""
 
     def __init__(self, client: Any):
         from cynober_rpc import parse_response_payload
@@ -149,14 +157,12 @@ class RpcLoreBackend:
 
 
 def default_lore_worlds_dir(project_name: str = "default") -> Path:
-    base = Path.home() / ".lore_editor" / "worlds" / project_name
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+    """Kompatybilność wsteczna — preferuj ProjectPaths.resolve()."""
+    return ProjectPaths.resolve(project_name).root
 
 
-def connect_local(project_name: str = "default") -> LocalLoreBackend:
-    wd = default_lore_worlds_dir(project_name)
-    return LocalLoreBackend(wd, project_name)
+def connect_local(paths: ProjectPaths) -> LocalLoreBackend:
+    return LocalLoreBackend(paths)
 
 
 def connect_rpc(

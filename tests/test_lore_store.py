@@ -4,26 +4,25 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from lore.backend import LocalLoreBackend, default_lore_worlds_dir
+from lore.backend import LocalLoreBackend
+from lore.paths import ProjectPaths
 from lore.store import LoreStore
-from lore.types import TypLore
 
 
 class TestLoreStoreLocal(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        os.environ["CYNOBER_WORLDS_DIR"] = self._tmp.name
         self._project = f"test_{os.getpid()}"
+        self._paths = ProjectPaths.resolve(self._project, self._tmp.name)
 
     def tearDown(self):
-        os.environ.pop("CYNOBER_WORLDS_DIR", None)
         self._tmp.cleanup()
 
     def _store(self) -> LoreStore:
-        wd = Path(self._tmp.name)
-        backend = LocalLoreBackend(wd, self._project)
-        store = LoreStore(backend, self._project)
+        backend = LocalLoreBackend(self._paths)
+        store = LoreStore(backend, self._paths)
         store._ensure_project()
         return store
 
@@ -37,17 +36,13 @@ class TestLoreStoreLocal(unittest.TestCase):
 
     def test_dokument_i_pomysl(self):
         lore = self._store()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
-            f.write("Rozdział pierwszy.")
-            path = f.name
-        try:
-            lore.otworz_dokument(path)
-            name = lore.wklej_pomysl_do_dokumentu("Mgła nad rzeką")
-            items = lore.lore_przy_dokumencie(path)
-            names = [i["nazwa"] for i in items]
-            self.assertIn(name, names)
-        finally:
-            Path(path).unlink(missing_ok=True)
+        path = str(self._paths.root / "rozdzial_01.txt")
+        Path(path).write_text("Rozdział pierwszy.", encoding="utf-8")
+        lore.otworz_dokument(path)
+        name = lore.wklej_pomysl_do_dokumentu("Mgła nad rzeką")
+        items = lore.lore_przy_dokumencie(path)
+        names = [i["nazwa"] for i in items]
+        self.assertIn(name, names)
         lore.close()
 
     def test_polacz_wplyw(self):
@@ -61,28 +56,73 @@ class TestLoreStoreLocal(unittest.TestCase):
 
     def test_graf_powiazan(self):
         lore = self._store()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
-            f.write("Rozdział.")
-            path = f.name
-        try:
-            lore.otworz_dokument(path)
-            anna = lore.dodaj_postac("Anna")
-            lore.powiaz_z_dokumentem(anna, path)
-            doc = lore.otworz_dokument(path)
-            graph = lore.graf_powiazan(doc, promien=2)
-            node_ids = {n["id"] for n in graph["nodes"]}
-            self.assertIn(anna, node_ids)
-            self.assertIn(doc, node_ids)
-            self.assertTrue(any(e["from"] == anna or e["to"] == anna for e in graph["edges"]))
-        finally:
-            Path(path).unlink(missing_ok=True)
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Rozdział.", encoding="utf-8")
+        lore.otworz_dokument(path)
+        anna = lore.dodaj_postac("Anna")
+        lore.powiaz_z_dokumentem(anna, path)
+        doc = lore.otworz_dokument(path)
+        graph = lore.graf_powiazan(doc, promien=2)
+        node_ids = {n["id"] for n in graph["nodes"]}
+        self.assertIn(anna, node_ids)
+        self.assertIn(doc, node_ids)
+        self.assertTrue(any(e["from"] == anna or e["to"] == anna for e in graph["edges"]))
+        lore.close()
+
+    def test_dokument_rozne_sciezki(self):
+        """Dwa pliki o tej samej nazwie w różnych podfolderach — różne bąble."""
+        lore = self._store()
+        (self._paths.root / "akt1").mkdir()
+        (self._paths.root / "akt2").mkdir()
+        p1 = str(self._paths.root / "akt1" / "intro.txt")
+        p2 = str(self._paths.root / "akt2" / "intro.txt")
+        Path(p1).write_text("Akt I", encoding="utf-8")
+        Path(p2).write_text("Akt II", encoding="utf-8")
+        d1 = lore.otworz_dokument(p1)
+        d2 = lore.otworz_dokument(p2)
+        self.assertNotEqual(d1, d2)
+        lore.close()
+
+    def test_plik_wzgledny_w_projekcie(self):
+        lore = self._store()
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Tekst", encoding="utf-8")
+        doc = lore.otworz_dokument(path)
+        data = lore.podglad(doc)
+        self.assertEqual(data.get("Plik"), "rozdzial.txt")
         lore.close()
 
 
-class TestDefaultPaths(unittest.TestCase):
-    def test_worlds_dir(self):
-        p = default_lore_worlds_dir("demo")
-        self.assertTrue(p.is_dir())
+class TestProjectPaths(unittest.TestCase):
+    def test_resolve_temp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = ProjectPaths.resolve("demo", tmp)
+            self.assertTrue(p.root.is_dir())
+            self.assertEqual(p.name, "demo")
+
+    def test_plik_wzgledny(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = ProjectPaths.resolve("demo", tmp)
+            inside = Path(tmp) / "rozdzial.txt"
+            self.assertEqual(p.plik_wzgledny(inside), "rozdzial.txt")
+
+
+class TestOpenRpc(unittest.TestCase):
+    @patch("lore.store.connect_rpc")
+    def test_open_rpc_factory(self, mock_connect):
+        mock_backend = MagicMock()
+        mock_backend.execute.side_effect = [
+            [{"status": "ok", "worlds": [{"name": "demo"}]}],
+            [{"status": "ok"}],
+            [{"status": "ok"}],
+        ]
+        mock_connect.return_value = mock_backend
+
+        with tempfile.TemporaryDirectory() as tmp:
+            lore = LoreStore.open_rpc("demo", "127.0.0.1", 8080, project_dir=tmp)
+            self.assertFalse(lore.tryb_lokalny())
+            self.assertEqual(lore.katalog_projektu(), Path(tmp).resolve())
+            lore.close()
 
 
 if __name__ == "__main__":

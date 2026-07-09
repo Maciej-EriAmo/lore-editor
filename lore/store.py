@@ -1,5 +1,6 @@
 """
 LoreStore — API lore dla pisarza. Zero KarminQL w interfejsie.
+Narzędzie pisarskie — bez Lua, bez silnika gry.
 """
 
 from __future__ import annotations
@@ -9,7 +10,10 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from cynober_worlds import validate_world_name
+
 from lore.backend import (
+    EngineBackend,
     LocalLoreBackend,
     LoreBackendError,
     RpcLoreBackend,
@@ -17,8 +21,9 @@ from lore.backend import (
     _last,
     connect_local,
     connect_rpc,
-    default_lore_worlds_dir,
 )
+from lore.paths import ProjectPaths
+from lore.team_sync import ZespolLore
 from lore.types import (
     POLE_NOTATKA,
     POLE_OPIS,
@@ -38,15 +43,25 @@ class LoreStore:
     Wszystkie operacje na grafie lore są ukryte pod prostymi metodami.
     """
 
-    def __init__(self, backend: Union[LocalLoreBackend, RpcLoreBackend], project: str):
+    def __init__(
+        self,
+        backend: EngineBackend,
+        paths: ProjectPaths,
+    ):
         self._backend = backend
-        self._project = self._sanitize_name(project)
+        self._paths = paths
+        self._project = paths.name
         self._opened_doc: Optional[str] = None
 
     @classmethod
-    def open_local(cls, project: str) -> "LoreStore":
-        default_lore_worlds_dir(project)
-        store = cls(connect_local(project), project)
+    def open_local(
+        cls,
+        project: str,
+        *,
+        project_dir: str | Path | None = None,
+    ) -> "LoreStore":
+        paths = ProjectPaths.resolve(project, project_dir)
+        store = cls(connect_local(paths), paths)
         store._ensure_project()
         return store
 
@@ -58,8 +73,10 @@ class LoreStore:
         port: int = 8080,
         *,
         profile: Optional[str] = None,
+        project_dir: str | Path | None = None,
     ) -> "LoreStore":
-        store = cls(connect_rpc(host, port, profile=profile), project)
+        paths = ProjectPaths.resolve(project, project_dir)
+        store = cls(connect_rpc(host, port, profile=profile), paths)
         store._ensure_project()
         return store
 
@@ -86,6 +103,18 @@ class LoreStore:
     def nazwa_projektu(self) -> str:
         return self._project
 
+    def katalog_projektu(self) -> Path:
+        """Folder z rozdziałami i plikami .kafd."""
+        return self._paths.root
+
+    def tryb_lokalny(self) -> bool:
+        return isinstance(self._backend, LocalLoreBackend)
+
+    def zespol(self) -> ZespolLore:
+        if not self.tryb_lokalny():
+            raise LoreBackendError("Sync plików wymaga trybu lokalnego (bez --rpc).")
+        return ZespolLore(self._paths)
+
     # ── Encje lore ────────────────────────────────────────────────────────
 
     def dodaj(
@@ -100,7 +129,7 @@ class LoreStore:
         **extra: Any,
     ) -> str:
         """Utwórz wpis lore (postać, pomysł, wpływ, …). Zwraca nazwę encji."""
-        name = self._sanitize_name(nazwa)
+        name = self._sanitize_entity(nazwa)
         typ_val = typ.value if isinstance(typ, TypLore) else str(typ)
         self._run_line(f'UTRWAL "{_esc(name)}"')
         self._inject(name, "Typ", typ_val)
@@ -120,9 +149,6 @@ class LoreStore:
     def dodaj_postac(self, nazwa: str, *, notatka: str = "", opis: str = "") -> str:
         return self.dodaj(nazwa, TypLore.POSTAĆ, notatka=notatka, opis=opis)
 
-    def dodaj_miejsce(self, nazwa: str, *, opis: str = "") -> str:
-        return self.dodaj(nazwa, TypLore.MIEJSCE, opis=opis)
-
     def dodaj_pomysl(self, tekst: str, *, nazwa: str = "", zrodlo: str = "") -> str:
         label = nazwa or self._pomysl_z_tekstu(tekst)
         return self.dodaj(label, TypLore.POMYSŁ, tekst=tekst, zrodlo=zrodlo)
@@ -136,16 +162,13 @@ class LoreStore:
     ) -> str:
         return self.dodaj(nazwa, TypLore.WPŁYW, zrodlo=zrodlo, notatka=notatka)
 
-    def dodaj_scene(self, nazwa: str, *, opis: str = "", plik: str = "") -> str:
-        return self.dodaj(nazwa, TypLore.SCENA, opis=opis, Plik=plik or "")
-
     def ustaw(self, encja: str, pole: str, wartosc: Any) -> None:
         """Uzupełnij notatkę, opis lub inną cechę."""
-        self._inject(self._sanitize_name(encja), pole, wartosc)
+        self._inject(self._sanitize_entity(encja), pole, wartosc)
 
     def podglad(self, encja: str) -> Dict[str, Any]:
         """Szczegóły encji do panelu bocznego."""
-        row = self._run_line(f'POKAŻ "{_esc(self._sanitize_name(encja))}"')
+        row = self._run_line(f'POKAŻ "{_esc(self._sanitize_entity(encja))}"')
         raw = row.get("data") or row.get("bubble") or {}
         if isinstance(raw, dict) and "properties" in raw:
             out = dict(raw.get("properties") or {})
@@ -162,13 +185,9 @@ class LoreStore:
         dokad: str,
         relacja: str,
     ) -> None:
-        """
-        Połącz dwa elementy lore. relacja = etykieta z RELACJE_LORE
-        (np. „wpływa na”, „koliguje z”).
-        """
         rel_key = REL_TO_GRAPH.get(relacja, self._slug_rel(relacja))
-        a = self._sanitize_name(skad)
-        b = self._sanitize_name(dokad)
+        a = self._sanitize_entity(skad)
+        b = self._sanitize_entity(dokad)
         self._run_line(f'POŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
 
     def graf_powiazan(
@@ -176,11 +195,10 @@ class LoreStore:
         seed: Optional[str] = None,
         promien: int = 2,
     ) -> Dict[str, Any]:
-        """Węzły i krawędzie do mapy wizualnej (panel „Mapa lore”)."""
         raw_seed = seed or self._opened_doc
         if not raw_seed:
             return {"seed": "", "nodes": [], "edges": []}
-        seed_name = self._sanitize_name(raw_seed)
+        seed_name = self._sanitize_entity(raw_seed)
         visited: set[str] = {seed_name}
         frontier: set[str] = {seed_name}
         for _ in range(max(0, promien)):
@@ -220,45 +238,31 @@ class LoreStore:
         return {"seed": seed_name, "nodes": nodes, "edges": edges}
 
     def sasiedzi(self, encja: str, promien: int = 2) -> List[str]:
-        """Encje w pobliżu na grafie lore (do panelu „powiązane”)."""
-        name = self._sanitize_name(encja)
+        name = self._sanitize_entity(encja)
         self._run_line(f'ROZWIJ "{_esc(name)}" PROMIEŃ {int(promien)}', strict=False)
-        row = self._run_line(
-            f'ZNAJDŹ POŁĄCZONE JAKO "wplywa_na" Z "{_esc(name)}"',
-            strict=False,
-        )
-        out = set(row.get("matches") or [])
+        out: set[str] = set()
         for rel in REL_TO_GRAPH.values():
             row = self._run_line(
                 f'ZNAJDŹ POŁĄCZONE JAKO "{_esc(rel)}" Z "{_esc(name)}"',
                 strict=False,
             )
             out.update(row.get("matches") or [])
-        rev = self._run_line(
-            f'ZNAJDŹ GDZIE "BĄBEL" = "{_esc(name)}"',
-            strict=False,
-        )
-        if name in (rev.get("matches") or []):
-            out.discard(name)
         return sorted(x for x in out if x != name)
 
     # ── Dokument ↔ lore (edytor) ──────────────────────────────────────────
 
     def otworz_dokument(self, sciezka_pliku: str) -> str:
-        """
-        Rejestruje otwarty rozdział/plik w lore. Wywoływane przy otwarciu karty
-        w edytorze — pisarz nie musi nic klikać.
-        """
         path = str(Path(sciezka_pliku).resolve())
         doc = self._dokument_z_pliku(path)
         worlds = {w.get("name") for w in self._run_line("LISTA ŚWIATÓW").get("worlds", [])}
         if self._project in worlds:
             self._run_line(f'WYBIERZ ŚWIAT "{_esc(self._project)}"')
         row = self._run_line(f'ZNAJDŹ GDZIE "BĄBEL" = "{_esc(doc)}"', strict=False)
+        plik = self._paths.plik_wzgledny(path)
         if doc not in (row.get("matches") or []):
-            self.dodaj(doc, TypLore.DOKUMENT, Plik=path, Opis=Path(path).name)
+            self.dodaj(doc, TypLore.DOKUMENT, Plik=plik, Opis=Path(path).name)
         else:
-            self.ustaw(doc, POLE_PLIK, path)
+            self.ustaw(doc, POLE_PLIK, plik)
         self._opened_doc = doc
         self._run_line(f'ROZWIJ "{_esc(doc)}" PROMIEŃ 1', strict=False)
         return doc
@@ -269,7 +273,6 @@ class LoreStore:
         sciezka_pliku: Optional[str] = None,
         relacja: str = "występuje w",
     ) -> None:
-        """Przypnij postać/pomysł do bieżącego rozdziału."""
         doc = self._opened_doc
         if sciezka_pliku:
             doc = self._dokument_z_pliku(sciezka_pliku)
@@ -279,7 +282,6 @@ class LoreStore:
         self.polacz(encja, doc, relacja)
 
     def lore_przy_dokumencie(self, sciezka_pliku: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Lista lore powiązanej z tym rozdziałem (panel boczny)."""
         doc = self._opened_doc
         if sciezka_pliku:
             doc = self._dokument_z_pliku(sciezka_pliku)
@@ -301,7 +303,6 @@ class LoreStore:
         return items
 
     def wklej_pomysl_do_dokumentu(self, tekst: str, *, zrodlo: str = "edytor") -> str:
-        """Szybki capture: nowy pomysł + powiązanie z otwartym rozdziałem."""
         name = self.dodaj_pomysl(tekst, zrodlo=zrodlo)
         if self._opened_doc:
             self.polacz(name, self._opened_doc, "koliguje z")
@@ -310,7 +311,6 @@ class LoreStore:
     # ── Wyszukiwanie ──────────────────────────────────────────────────────
 
     def szukaj(self, fraza: str, *, typ: Optional[str] = None) -> List[str]:
-        """Szukaj w notatkach, opisach i tekstach pomysłów."""
         pattern = _esc(fraza)
         clauses = [
             f'"{POLE_NOTATKA}" ILIKE "%{pattern}%"',
@@ -328,12 +328,6 @@ class LoreStore:
         t = typ.value if isinstance(typ, TypLore) else str(typ)
         row = self._run_line(f'ZNAJDŹ GDZIE "Typ" = "{_esc(t)}"', strict=False)
         return list(row.get("matches") or [])
-
-    def wszystkie_typy(self) -> List[str]:
-        return list(TYPY_LORE)
-
-    def wszystkie_relacje(self) -> List[str]:
-        return list(RELACJE_LORE)
 
     # ── Wewnętrzne ────────────────────────────────────────────────────────
 
@@ -357,7 +351,7 @@ class LoreStore:
             self._run_line(f'WSTRZYKNIJ "{_esc(key)}" = "{_esc(str(value))}" DO "{_esc(bubble)}"')
 
     @staticmethod
-    def _sanitize_name(name: str) -> str:
+    def _sanitize_entity(name: str) -> str:
         name = name.strip()
         if not name:
             raise LoreBackendError("Podaj nazwę.")
@@ -368,21 +362,29 @@ class LoreStore:
         return clean[:64]
 
     @staticmethod
+    def _sanitize_project(name: str) -> str:
+        return validate_world_name(name)
+
+    @staticmethod
     def _slug_rel(label: str) -> str:
         s = re.sub(r"[^\w]", "_", label.lower(), flags=re.UNICODE)
         return re.sub(r"_+", "_", s).strip("_")[:32] or "powiazanie"
 
-    @staticmethod
-    def _dokument_z_pliku(path: str) -> str:
-        stem = Path(path).stem
-        slug = re.sub(r"[^\w\-]", "_", stem, flags=re.UNICODE)[:40]
+    def _dokument_z_pliku(self, path: str) -> str:
+        p = Path(path).resolve()
+        try:
+            rel = p.relative_to(self._paths.root)
+            slug_base = str(rel.with_suffix("")).replace("\\", "/").replace("/", "_")
+        except ValueError:
+            slug_base = p.stem
+        slug = re.sub(r"[^\w\-]", "_", slug_base, flags=re.UNICODE)[:48]
         return f"Dok_{slug or 'bez_nazwy'}"
 
     @staticmethod
     def _pomysl_z_tekstu(tekst: str) -> str:
         words = re.findall(r"\w+", tekst, flags=re.UNICODE)[:4]
         base = "_".join(words) if words else "pomysl"
-        return LoreStore._sanitize_name(f"Pomysl_{base}")[:48]
+        return LoreStore._sanitize_entity(f"Pomysl_{base}")[:48]
 
     @staticmethod
     def _skrot(text: str, n: int = 80) -> str:

@@ -3,25 +3,50 @@
 Lore Editor — edytor rozdziałów z panelem lore (bez KarminQL).
 
     python run_lore_editor.py --project MojaPowiesc
+    python run_lore_editor.py --project MojaPowiesc --project-dir ~/Documents/MojaPowiesc
     python run_lore_editor.py --project MojaPowiesc --astraedit
+    python run_lore_editor.py --project MojaPowiesc --rpc --host 192.168.1.10
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
 
-def _run_standalone(project: str, file_path: str | None) -> None:
+def _open_lore(project: str, project_dir: str | None, rpc: bool, host: str, port: int, profile: str | None):
+    from lore.store import LoreStore
+
+    if rpc:
+        return LoreStore.open_rpc(
+            project,
+            host=host,
+            port=port,
+            profile=profile,
+            project_dir=project_dir,
+        )
+    return LoreStore.open_local(project, project_dir=project_dir)
+
+
+def _run_standalone(
+    project: str,
+    file_path: str | None,
+    *,
+    project_dir: str | None,
+    rpc: bool,
+    host: str,
+    port: int,
+    profile: str | None,
+) -> None:
     import tkinter as tk
     from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+    from lore.document_hooks import on_file_opened, on_file_saved
     from lore.panel import LorePanel
-    from lore.store import LoreStore
 
-    lore = LoreStore.open_local(project)
+    lore = _open_lore(project, project_dir, rpc, host, port, profile)
+    proj_root = lore.katalog_projektu()
 
     root = tk.Tk()
     root.title(f"Lore Editor — {project}")
@@ -55,7 +80,8 @@ def _run_standalone(project: str, file_path: str | None) -> None:
 
     def _open():
         p = filedialog.askopenfilename(
-            filetypes=[("Tekst", "*.txt *.md"), ("Wszystkie", "*.*")]
+            initialdir=str(proj_root),
+            filetypes=[("Tekst", "*.txt *.md"), ("Wszystkie", "*.*")],
         )
         if not p:
             return
@@ -69,22 +95,22 @@ def _run_standalone(project: str, file_path: str | None) -> None:
         state["path"] = p
         state["dirty"] = False
         root.title(f"Lore Editor — {project} — {Path(p).name}")
-        lore.otworz_dokument(p)
-        panel.odswiez()
+        on_file_opened(lore, p, panel)
 
     def _save():
         p = state["path"]
         if not p:
-            p = filedialog.asksaveasfilename(defaultextension=".txt")
+            p = filedialog.asksaveasfilename(
+                initialdir=str(proj_root),
+                defaultextension=".txt",
+            )
             if not p:
                 return
             state["path"] = p
         try:
             Path(p).write_text(text.get("1.0", tk.END), encoding="utf-8")
-            lore.otworz_dokument(p)
-            lore.zapisz()
             state["dirty"] = False
-            panel.odswiez()
+            on_file_saved(lore, p, panel)
         except OSError as e:
             messagebox.showerror("Błąd", str(e))
 
@@ -93,8 +119,7 @@ def _run_standalone(project: str, file_path: str | None) -> None:
         text.delete("1.0", tk.END)
         text.insert("1.0", content)
         state["path"] = file_path
-        lore.otworz_dokument(file_path)
-        panel.odswiez()
+        on_file_opened(lore, file_path, panel)
         root.title(f"Lore Editor — {project} — {Path(file_path).name}")
 
     def on_close():
@@ -109,65 +134,23 @@ def _run_standalone(project: str, file_path: str | None) -> None:
     root.mainloop()
 
 
-def _load_astraedit_gui():
-    """Załaduj AstraEditGUI: vendor 4.5 → lokalna instalacja → ASTRAEDIT_PATH."""
-    import importlib.util
-
-    root = Path(__file__).resolve().parent
-    vendor_script = root / "vendor" / "Astraedit" / "Astraedit-4.5.py"
-    candidates: list[Path] = []
-    env_path = os.environ.get("ASTRAEDIT_PATH", "").strip()
-    if env_path:
-        candidates.append(Path(env_path))
-    candidates.extend([
-        Path.home() / "Documents" / "AstraEdit",
-        root / "AstraEdit",
-    ])
-
-    scripts: list[Path] = []
-    if vendor_script.is_file():
-        scripts.append(vendor_script)
-    for base in candidates:
-        if not base.is_dir():
-            continue
-        sys.path.insert(0, str(base))
-        for name in ("AstraEdit.pyw", "AstraEdit.py", "Astraedit-4.5.py"):
-            p = base / name
-            if p.is_file() and p not in scripts:
-                scripts.append(p)
-
-    for script in scripts:
-        try:
-            spec = importlib.util.spec_from_file_location("astraedit_mod", script)
-            if spec is None or spec.loader is None:
-                continue
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            if hasattr(mod, "AstraEditGUI"):
-                return mod.AstraEditGUI
-        except Exception:
-            continue
-
-    try:
-        from AstraEdit import AstraEditGUI  # type: ignore
-        return AstraEditGUI
-    except ImportError:
-        pass
-
-    raise ImportError(
-        "Brak AstraEdit. Uruchom scripts/install_writer.ps1 lub ustaw ASTRAEDIT_PATH."
-    )
-
-
-def _run_astraedit(project: str, files: list[str]) -> None:
-    """Uruchom AstraEdit z panelem lore."""
+def _run_astraedit(
+    project: str,
+    files: list[str],
+    *,
+    project_dir: str | None,
+    rpc: bool,
+    host: str,
+    port: int,
+    profile: str | None,
+) -> None:
     from lore.astraedit_bridge import attach_lore_to_astraedit
-    from lore.store import LoreStore
+    from lore.astraedit_loader import load_astraedit_gui
 
-    lore = LoreStore.open_local(project)
+    lore = _open_lore(project, project_dir, rpc, host, port, profile)
 
     try:
-        AstraEditGUI = _load_astraedit_gui()
+        AstraEditGUI = load_astraedit_gui()
     except ImportError as e:
         print(e)
         print("Użyj: python run_lore_editor.py --project Nazwa  (standalone)")
@@ -184,15 +167,32 @@ def _run_astraedit(project: str, files: list[str]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Lore Editor — pisarz + Cynober lore")
     parser.add_argument("--project", "-p", default="MojaPowiesc", help="Nazwa projektu / świata lore")
+    parser.add_argument(
+        "--project-dir",
+        default=None,
+        help="Folder projektu (rozdziały + .kafd); domyślnie ~/.lore_editor/worlds/<projekt>",
+    )
     parser.add_argument("--file", "-f", default=None, help="Plik do otwarcia")
     parser.add_argument("--astraedit", action="store_true", help="Użyj AstraEdit zamiast prostego edytora")
+    parser.add_argument("--rpc", action="store_true", help="Lore na serwerze (cynober-server); rozdziały lokalnie")
+    parser.add_argument("--host", default="127.0.0.1", help="Host cynober-server (--rpc lub sync)")
+    parser.add_argument("--port", type=int, default=8080, help="Port cynober-server")
+    parser.add_argument("--profile", default=None, help="Profil cynober-client zamiast --host/--port")
     parser.add_argument("files", nargs="*", help="Pliki (tryb --astraedit)")
     args = parser.parse_args()
 
+    kw = dict(
+        project_dir=args.project_dir,
+        rpc=args.rpc,
+        host=args.host,
+        port=args.port,
+        profile=args.profile,
+    )
+
     if args.astraedit:
-        _run_astraedit(args.project, args.files or ([args.file] if args.file else []))
+        _run_astraedit(args.project, args.files or ([args.file] if args.file else []), **kw)
     else:
-        _run_standalone(args.project, args.file)
+        _run_standalone(args.project, args.file, **kw)
 
 
 if __name__ == "__main__":
