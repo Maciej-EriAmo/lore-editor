@@ -79,6 +79,7 @@ class LorePanel(ttk.Frame):
         act = ttk.Frame(tab_lore)
         act.pack(fill="x", pady=6)
         ttk.Button(act, text="Powiąż z rozdziałem", command=self._powiaz).pack(fill="x", pady=1)
+        ttk.Button(act, text="Powiąż inny wpis…", command=self._dlg_powiaz).pack(fill="x", pady=1)
         ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=1)
         ttk.Button(act, text="Odłącz od rozdziału", command=self._odlacz).pack(fill="x", pady=1)
         ttk.Button(act, text="Usuń wpis", command=self._usun_wpis).pack(fill="x", pady=1)
@@ -128,14 +129,21 @@ class LorePanel(ttk.Frame):
             self._host_var = tk.StringVar()
             self._port_var = tk.StringVar()
 
+    def _sciezka_rozdzialu(self) -> str:
+        path = self._get_file()
+        if not path:
+            raise ValueError("Otwórz najpierw rozdział (plik tekstowy) w edytorze.")
+        return path
+
     def odswiez(self) -> None:
         self._notebook.select(0)
         path = self._get_file()
         if path:
             try:
                 self._lore.otworz_dokument(path)
-            except Exception:
-                pass
+            except Exception as e:
+                self._set_detail(f"Błąd otwarcia dokumentu: {e}")
+                return
         self._list.delete(0, tk.END)
         try:
             items = self._lore.lore_przy_dokumencie(path or None)
@@ -191,10 +199,12 @@ class LorePanel(ttk.Frame):
             return
         notatka = simpledialog.askstring("Postać", "Krótka notatka (opcjonalnie):", parent=self) or ""
         try:
-            self._lore.dodaj_postac(nazwa, notatka=notatka)
-            path = self._get_file()
-            if path:
-                self._lore.powiaz_z_dokumentem(nazwa, path)
+            encja = self._lore.dodaj_postac(nazwa, notatka=notatka)
+            try:
+                path = self._sciezka_rozdzialu()
+                self._lore.powiaz_z_dokumentem(encja, path)
+            except ValueError:
+                pass
             self._lore.zapisz()
             self.odswiez()
         except Exception as e:
@@ -205,7 +215,12 @@ class LorePanel(ttk.Frame):
         if not tekst:
             return
         try:
-            self._lore.wklej_pomysl_do_dokumentu(tekst)
+            path = None
+            try:
+                path = self._sciezka_rozdzialu()
+            except ValueError:
+                pass
+            self._lore.wklej_pomysl_do_dokumentu(tekst, sciezka_pliku=path)
             self._lore.zapisz()
             self.odswiez()
         except Exception as e:
@@ -217,28 +232,53 @@ class LorePanel(ttk.Frame):
             return
         notatka = simpledialog.askstring("Wpływ", "Co Cię inspirowało?", parent=self) or ""
         try:
-            self._lore.dodaj_wplyw(nazwa, notatka=notatka)
-            path = self._get_file()
-            if path:
-                self._lore.powiaz_z_dokumentem(nazwa, path, relacja="inspiruje")
+            encja = self._lore.dodaj_wplyw(nazwa, notatka=notatka)
+            try:
+                path = self._sciezka_rozdzialu()
+                self._lore.powiaz_z_dokumentem(encja, path, relacja="inspiruje")
+            except ValueError:
+                pass
             self._lore.zapisz()
             self.odswiez()
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
 
+    def _powiaz_wpis(self, name: str, *, relacja: str = "występuje w") -> None:
+        path = self._sciezka_rozdzialu()
+        self._lore.powiaz_z_dokumentem(name, path, relacja=relacja)
+        self._lore.zapisz()
+        self.odswiez()
+
     def _powiaz(self) -> None:
         name = self._selected_name()
         if not name:
-            messagebox.showinfo("Lore", "Wybierz element z listy.", parent=self)
-            return
-        path = self._get_file()
-        if not path:
-            messagebox.showinfo("Lore", "Otwórz najpierw rozdział (plik tekstowy).", parent=self)
+            self._dlg_powiaz()
             return
         try:
-            self._lore.powiaz_z_dokumentem(name, path)
+            self._powiaz_wpis(name)
+        except ValueError as e:
+            messagebox.showinfo("Lore", str(e), parent=self)
+        except Exception as e:
+            messagebox.showerror("Lore", str(e), parent=self)
+
+    def _dlg_powiaz(self) -> None:
+        try:
+            path = self._sciezka_rozdzialu()
+        except ValueError as e:
+            messagebox.showinfo("Lore", str(e), parent=self)
+            return
+        name = simpledialog.askstring(
+            "Powiąż z rozdziałem",
+            "Nazwa istniejącego wpisu lore (postać, pomysł, wpływ…):",
+            parent=self,
+        )
+        if not name:
+            return
+        try:
+            self._lore.powiaz_z_dokumentem(name.strip(), path)
             self._lore.zapisz()
             self.odswiez()
+            messagebox.showinfo("Lore", f"Powiązano „{name.strip()}” z rozdziałem.", parent=self)
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
 
@@ -247,14 +287,13 @@ class LorePanel(ttk.Frame):
         if not name:
             messagebox.showinfo("Lore", "Wybierz element z listy.", parent=self)
             return
-        path = self._get_file()
-        if not path:
-            messagebox.showinfo("Lore", "Otwórz najpierw rozdział (plik tekstowy).", parent=self)
-            return
         try:
+            path = self._sciezka_rozdzialu()
             self._lore.odlacz_od_dokumentu(name, path)
             self._lore.zapisz()
             self.odswiez()
+        except ValueError as e:
+            messagebox.showinfo("Lore", str(e), parent=self)
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
 

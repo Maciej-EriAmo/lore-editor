@@ -12,20 +12,14 @@ if TYPE_CHECKING:
 def on_file_opened(lore: "LoreStore", path: str, panel: Optional["LorePanel"] = None) -> None:
     if not path:
         return
-    try:
-        lore.otworz_dokument(path)
-        if panel is not None:
-            panel.odswiez()
-    except Exception:
-        pass
+    lore.otworz_dokument(path)
+    if panel is not None:
+        panel.odswiez()
 
 
 def on_file_saved(lore: "LoreStore", path: str, panel: Optional["LorePanel"] = None) -> None:
-    try:
-        if path:
-            lore.otworz_dokument(path)
-        lore.zapisz()
-        if panel is not None:
-            panel.odswiez()
-    except Exception:
-        pass
+    if path:
+        lore.otworz_dokument(path)
+    lore.zapisz()
+    if panel is not None:
+        panel.odswiez()

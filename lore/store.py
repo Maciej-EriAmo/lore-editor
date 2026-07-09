@@ -190,6 +190,10 @@ class LoreStore:
         rel_key = REL_TO_GRAPH.get(relacja, self._slug_rel(relacja))
         a = self._sanitize_entity(skad)
         b = self._sanitize_entity(dokad)
+        if not self.encja_istnieje(a):
+            raise LoreBackendError(f"Nie ma wpisu „{skad}”.")
+        if not self.encja_istnieje(b):
+            raise LoreBackendError(f"Nie ma wpisu „{dokad}”.")
         self._run_line(f'POŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
 
     def rozlacz(self, skad: str, dokad: str, relacja: str) -> None:
@@ -298,7 +302,28 @@ class LoreStore:
                 strict=False,
             )
             out.update(row.get("matches") or [])
-        return sorted(x for x in out if x != name)
+        try:
+            data = self.podglad(name)
+            for rel in data.get("_relations") or []:
+                if isinstance(rel, dict):
+                    target = rel.get("target")
+                    if target:
+                        out.add(str(target))
+        except LoreBackendError:
+            pass
+        out.discard(name)
+        return sorted(out)
+
+    def encja_istnieje(self, encja: str) -> bool:
+        name = self._sanitize_entity(encja)
+        row = self._run_line(f'ZNAJDŹ GDZIE "BĄBEL" = "{_esc(name)}"', strict=False)
+        return name in (row.get("matches") or [])
+
+    def wszystkie_wpisy(self) -> List[str]:
+        out: set[str] = set()
+        for typ in TYPY_LORE:
+            out.update(self.lista_po_typie(typ))
+        return sorted(out)
 
     # ── Dokument ↔ lore (edytor) ──────────────────────────────────────────
 
@@ -324,13 +349,18 @@ class LoreStore:
         sciezka_pliku: Optional[str] = None,
         relacja: str = "występuje w",
     ) -> None:
+        enc = self._sanitize_entity(encja)
+        if not self.encja_istnieje(enc):
+            raise LoreBackendError(
+                f"Nie ma wpisu „{encja}”. Dodaj go (+ Postać / + Pomysł / + Wpływ) lub użyj Szukaj."
+            )
         doc = self._opened_doc
         if sciezka_pliku:
-            doc = self._dokument_z_pliku(sciezka_pliku)
             self.otworz_dokument(sciezka_pliku)
+            doc = self._dokument_z_pliku(sciezka_pliku)
         if not doc:
-            raise LoreBackendError("Brak otwartego dokumentu — otwórz plik w edytorze.")
-        self.polacz(encja, doc, relacja)
+            raise LoreBackendError("Brak otwartego dokumentu — otwórz i zapisz plik rozdziału w edytorze.")
+        self.polacz(enc, doc, relacja)
 
     def lore_przy_dokumencie(self, sciezka_pliku: Optional[str] = None) -> List[Dict[str, Any]]:
         doc = self._opened_doc
@@ -353,9 +383,17 @@ class LoreStore:
                 items.append({"nazwa": name, "typ": "?", "opis": ""})
         return items
 
-    def wklej_pomysl_do_dokumentu(self, tekst: str, *, zrodlo: str = "edytor") -> str:
+    def wklej_pomysl_do_dokumentu(
+        self,
+        tekst: str,
+        *,
+        zrodlo: str = "edytor",
+        sciezka_pliku: Optional[str] = None,
+    ) -> str:
         name = self.dodaj_pomysl(tekst, zrodlo=zrodlo)
-        if self._opened_doc:
+        if sciezka_pliku:
+            self.powiaz_z_dokumentem(name, sciezka_pliku, relacja="koliguje z")
+        elif self._opened_doc:
             self.polacz(name, self._opened_doc, "koliguje z")
         return name
 

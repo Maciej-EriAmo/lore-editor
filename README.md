@@ -64,25 +64,52 @@ lore-editor rozdzial_01.txt rozdzial_02.md   # kilka kart
 lore-editor --rpc --host 192.168.1.10    # lore na serwerze
 ```
 
-### Edytor wbudowany
+### Edytor tekstu
 
 - **Karty** — wiele plików naraz; zamknij: `×` na karcie, `Ctrl+W`, środkowy przycisk myszy
 - **Plik** — Nowy, Otwórz, Zapisz, Zapisz jako…
 - **Edycja** — Cofnij/Ponów, Znajdź (`Ctrl+F`), przełącz zawijanie wierszy
-- **Skróty** — `Ctrl+N` `Ctrl+O` `Ctrl+S` `Ctrl+Shift+S`
+- **Skróty** — `Ctrl+N` `Ctrl+O` `Ctrl+S` `Ctrl+Shift+S` `Ctrl+W` `Ctrl+F`
 - **Status** — liczba słów i znaków, kodowanie pliku
 - **Autosave** — co 60 s (tylko pliki już zapisane na dysku)
-- **Panel lore** — zakładki Rozdział · Szukaj · Zespół
+
+### Panel lore (zakładki Rozdział · Szukaj · Zespół)
+
+**Ważne:** powiązania z rozdziałem wymagają **otwartego pliku** w edytorze (karta z zapisaną lub otwartą ścieżką na dysku).
+
+#### Dodawanie wpisów
+
+| Przycisk | Co robi |
+|----------|---------|
+| **+ Postać** | Tworzy postać; jeśli masz otwarty rozdział — automatycznie go powiązuje |
+| **+ Pomysł** | Zapisuje myśl i wiąże z otwartym rozdziałem |
+| **+ Wpływ** | Dodaje inspirację (np. autor, mit) i wiąże z rozdziałem |
+
+#### Powiązania z rozdziałem
+
+| Akcja | Kiedy użyć |
+|-------|------------|
+| **Powiąż z rozdziałem** | Wybierz wpis z listy (lub otwórz dialog, gdy lista pusta) |
+| **Powiąż inny wpis…** | Wpisz nazwę istniejącej postaci/pomysłu — przydatne gdy lista rozdziału jest pusta |
+| **Połącz z…** | Połączenie dwóch wpisów lore (np. postać ↔ wpływ), niezależnie od pliku |
+| **Odłącz od rozdziału** | Usuwa powiązanie z tym rozdziałem; wpis zostaje w projekcie |
+| **Usuń wpis** | Trwale kasuje element z grafu lore (`Delete` na liście) |
+| **Mapa powiązań** | Graficzny podgląd koligacji |
+| **Szukaj** | Znajdź wpisy po fragmencie tekstu, potem powiąż z rozdziałem |
+
+#### Zespół (sync)
+
+Wymaga trybu lokalnego i uruchomionego `cynober-server`. Przyciski: Wyślij / Pobierz / Synchronizuj.
 
 ## Pakiet exe (Nuitka)
 
 ```powershell
 .\scripts\build_nuitka.ps1
-# wynik: dist\run_lore_editor.exe
+# wynik: dist\run_lore_editor.dist\run_lore_editor.exe
 ```
 
-Skopiuj exe do folderu projektu lub uruchamiaj z katalogu z `.lore-project`.  
-**Uwaga:** pierwszy build Nuitka trwa długo (~5–15 min); exe ma ~30–80 MB (Cynober w środku).
+Skopiuj **cały folder** `run_lore_editor.dist` do katalogu projektu lub uruchamiaj exe z folderu z `.lore-project`.  
+Pierwszy build Nuitka trwa długo (~5–15 min); paczka ma ~25–80 MB (Cynober w środku).
 
 ## Testy
 

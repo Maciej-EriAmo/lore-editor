@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from lore.backend import LocalLoreBackend
+from lore.backend import LocalLoreBackend, LoreBackendError
 from lore.paths import ProjectPaths
 from lore.store import LoreStore
 
@@ -81,6 +81,33 @@ class TestLoreStoreLocal(unittest.TestCase):
         d1 = lore.otworz_dokument(p1)
         d2 = lore.otworz_dokument(p2)
         self.assertNotEqual(d1, d2)
+        lore.close()
+
+    def test_pomysl_powiazany_przez_sciezke(self):
+        lore = self._store()
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Rozdział.", encoding="utf-8")
+        name = lore.wklej_pomysl_do_dokumentu("Mgła nad rzeką", sciezka_pliku=path)
+        items = lore.lore_przy_dokumencie(path)
+        self.assertIn(name, [i["nazwa"] for i in items])
+        lore.close()
+
+    def test_sasiedzi_bidirekcja(self):
+        lore = self._store()
+        lore.dodaj_postac("Anna")
+        lore.dodaj_postac("Boris")
+        lore.polacz("Anna", "Boris", "koliguje z")
+        self.assertIn("Boris", lore.sasiedzi("Anna"))
+        self.assertIn("Anna", lore.sasiedzi("Boris"))
+        lore.close()
+
+    def test_powiaz_wymaga_istniejacej_encji(self):
+        lore = self._store()
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Rozdział.", encoding="utf-8")
+        lore.otworz_dokument(path)
+        with self.assertRaises(LoreBackendError):
+            lore.powiaz_z_dokumentem("Nieistniejacy", path)
         lore.close()
 
     def test_usun_encje(self):
