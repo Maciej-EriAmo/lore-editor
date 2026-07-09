@@ -5,6 +5,8 @@ Obsługuje AstraEdit 4.5+ (paned_window) i starsze wersje (paned).
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,13 +25,31 @@ def _editor_shell(gui_app):
     )
 
 
+def _fix_layout(gui_app, outer, editor_shell) -> None:
+    """Po reparentingu wymuś sensowne rozmiary paneli."""
+    root = gui_app.root
+    root.update_idletasks()
+    try:
+        w = outer.winfo_width()
+        if w > 400:
+            outer.sash_place(0, max(w - 300, 400), 0)
+    except Exception:
+        pass
+    try:
+        h = editor_shell.winfo_height()
+        if h > 200 and hasattr(editor_shell, "sash_place"):
+            editor_shell.sash_place(0, 0, int(h * 0.72))
+    except Exception:
+        pass
+
+
 def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     """
     Dodaje panel lore po prawej stronie istniejącego AstraEditGUI.
     Wywołaj przed gui.run(), po utworzeniu okna.
     """
     import tkinter as tk
-    from tkinter import ttk
+    from tkinter import filedialog, ttk
 
     from lore.document_hooks import on_file_opened, on_file_saved
     from lore.panel import LorePanel
@@ -37,6 +57,7 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     root = gui_app.root
     editor_shell = _editor_shell(gui_app)
     status_bar = getattr(gui_app, "status_bar", None)
+    bg = getattr(gui_app, "bg_color", "#1e1e1e")
 
     def _active_tab():
         if hasattr(gui_app, "get_current_tab"):
@@ -58,56 +79,99 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     if status_bar is not None:
         status_bar.pack_forget()
 
-    outer = ttk.PanedWindow(root, orient=tk.HORIZONTAL)
+    # tk.PanedWindow — ten sam co w AstraEdit; minsize chroni edytor przed zwinięciem
+    outer = tk.PanedWindow(root, orient=tk.HORIZONTAL, sashwidth=4, bg="#333333")
     outer.pack(fill="both", expand=True)
 
-    left = ttk.Frame(outer)
-    outer.add(left, weight=3)
+    left = tk.Frame(outer, bg=bg)
+    outer.add(left, minsize=480, stretch="always")
     editor_shell.pack(in_=left, fill="both", expand=True)
 
+    right_host = tk.Frame(outer, bg=bg, width=300)
+    outer.add(right_host, minsize=260, stretch="never")
+
     right = LorePanel(
-        outer,
+        right_host,
         lore,
         get_current_file=current_file,
-        width=300,
     )
-    outer.add(right, weight=1)
+    right.pack(fill="both", expand=True)
 
     if status_bar is not None:
         status_bar.pack(side="bottom", fill="x")
 
+    _fix_layout(gui_app, outer, editor_shell)
+    root.after(100, lambda: _fix_layout(gui_app, outer, editor_shell))
+
     orig_open = gui_app.open_file
 
-    def open_with_lore(path, *args, **kwargs):
-        result = orig_open(path, *args, **kwargs)
-        on_file_opened(lore, path, right)
+    def open_with_lore(file_path, *args, **kwargs):
+        result = orig_open(file_path, *args, **kwargs)
+        path = str(Path(file_path).resolve())
+        if os.path.isfile(path):
+            on_file_opened(lore, path, right)
         return result
 
     gui_app.open_file = open_with_lore
+
+    def open_dialog_with_lore():
+        proj = lore.katalog_projektu()
+        paths = filedialog.askopenfilenames(
+            parent=root,
+            title="Otwórz pliki",
+            initialdir=str(proj),
+            filetypes=[("Tekst", "*.txt *.md"), ("Wszystkie", "*.*")],
+        )
+        for path in paths:
+            if path:
+                open_with_lore(path)
+
+    gui_app.open_file_dialog = open_dialog_with_lore
 
     orig_save = gui_app.save_current
 
     def save_with_lore(*args, **kwargs):
         result = orig_save(*args, **kwargs)
-        on_file_saved(lore, current_file(), right)
+        path = current_file()
+        if path:
+            on_file_saved(lore, path, right)
         return result
 
     gui_app.save_current = save_with_lore
+
+    if hasattr(gui_app, "save_as"):
+        orig_save_as = gui_app.save_as
+
+        def save_as_with_lore(*args, **kwargs):
+            result = orig_save_as(*args, **kwargs)
+            path = current_file()
+            if path:
+                on_file_saved(lore, path, right)
+            return result
+
+        gui_app.save_as = save_as_with_lore
 
     if hasattr(gui_app, "on_tab_changed"):
         orig_tab = gui_app.on_tab_changed
 
         def tab_with_lore(event=None):
             orig_tab(event)
-            on_file_opened(lore, current_file(), right)
+            path = current_file()
+            if path and os.path.isfile(path):
+                on_file_opened(lore, path, right)
 
         gui_app.on_tab_changed = tab_with_lore
 
     try:
         mb = root.nametowidget(root.cget("menu"))
         lm = tk.Menu(mb, tearoff=0)
+        lm.add_command(label="Otwórz z folderu projektu…", command=open_dialog_with_lore)
         lm.add_command(label="Odśwież panel lore", command=right.odswiez)
         lm.add_command(label="Zapisz projekt lore", command=lore.zapisz)
         mb.add_cascade(label="Lore", menu=lm)
     except Exception:
         pass
+
+    path = current_file()
+    if path and os.path.isfile(path):
+        on_file_opened(lore, path, right)
