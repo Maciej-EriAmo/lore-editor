@@ -1,6 +1,6 @@
 """
 Most do AstraEdit — panel Lore po prawej, edytor AstraEdit po lewej.
-Nie rusza paned_window — tylko dokleja panel po prawej stronie root.
+Edytor i status bar trafiają do wspólnej ramki body obok panelu lore.
 """
 
 from __future__ import annotations
@@ -74,6 +74,7 @@ def _schedule_layout_refresh(root, gui_app) -> None:
 
     root.after_idle(_refresh)
     root.after(100, _refresh)
+    root.after(300, _refresh)
 
 
 def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
@@ -84,6 +85,8 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     from lore.panel import LorePanel
 
     root = gui_app.root
+    editor_shell = _editor_shell(gui_app)
+    status_bar = getattr(gui_app, "status_bar", None)
     bg = getattr(gui_app, "bg_color", "#1e1e1e")
 
     def _active_tab():
@@ -102,12 +105,24 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
             return getattr(tabs[0], "file_path", "")
         return ""
 
-    right_host = tk.Frame(root, bg=bg, width=LORE_PANEL_WIDTH)
+    editor_shell.pack_forget()
+    if status_bar is not None:
+        status_bar.pack_forget()
+
+    body = tk.Frame(root, bg=bg)
+    body.pack(fill="both", expand=True)
+
+    right_host = tk.Frame(body, bg=bg, width=LORE_PANEL_WIDTH)
     right_host.pack(side="right", fill="y")
     right_host.pack_propagate(False)
 
     right = LorePanel(right_host, lore, get_current_file=current_file)
     right.pack(fill="both", expand=True)
+
+    editor_shell.pack(in_=body, side="left", fill="both", expand=True)
+
+    if status_bar is not None:
+        status_bar.pack(side="bottom", fill="x")
 
     _schedule_layout_refresh(root, gui_app)
 

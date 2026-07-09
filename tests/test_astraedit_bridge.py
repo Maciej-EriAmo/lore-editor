@@ -35,6 +35,38 @@ class TestAstraeditBridge(unittest.TestCase):
             gui.root.destroy()
             lore.close()
 
+    def test_lore_panel_has_full_height(self):
+        try:
+            AstraEditGUI = load_astraedit_gui()
+        except ImportError as e:
+            self.skipTest(str(e))
+
+        lore = LoreStore.open_local(project_dir=self._tmp.name)
+        gui = AstraEditGUI()
+        try:
+            attach_lore_to_astraedit(gui, lore)
+            gui.root.geometry("1100x800")
+            gui.root.update_idletasks()
+            gui.root.update()
+
+            body = None
+            right_host = None
+            for child in gui.root.winfo_children():
+                if child.winfo_class() == "Frame" and child.winfo_width() > 500:
+                    body = child
+                    break
+            self.assertIsNotNone(body, "brak ramki body")
+            for child in body.winfo_children():
+                if child.winfo_width() == 300:
+                    right_host = child
+                    break
+            self.assertIsNotNone(right_host, "brak panelu lore")
+            self.assertGreaterEqual(right_host.winfo_height(), 400)
+            self.assertGreaterEqual(_editor_shell(gui).winfo_height(), 400)
+        finally:
+            gui.root.destroy()
+            lore.close()
+
     def test_open_file_after_attach(self):
         try:
             AstraEditGUI = load_astraedit_gui()
