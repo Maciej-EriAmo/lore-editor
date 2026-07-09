@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "world": "lore-editor",
+  "sharded": true,
+  "regions": [
+    {
+      "id": "region_0",
+      "file": "region_0.kafd",
+      "bubbles": [
+        "Dok_TCK"
+      ],
+      "atoms": [
+        "a6"
+      ],
+      "bytes": 624
+    },
+    {
+      "id": "region_1",
+      "file": "region_1.kafd",
+      "bubbles": [
+        "Dok_notatka"
+      ],
+      "atoms": [
+        "a1"
+      ],
+      "bytes": 424
+    }
+  ]
+}

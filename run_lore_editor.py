@@ -49,6 +49,7 @@ def _run_standalone(
 
     from lore.document_hooks import on_file_opened, on_file_saved
     from lore.panel import LorePanel
+    from lore.text_io import read_text_smart, write_text
     from lore.theme import apply_theme, style_text
 
     lore = _open_lore(project, project_dir, rpc, host, port, profile)
@@ -89,7 +90,7 @@ def _run_standalone(
     text.configure(height=1)
     text.pack(fill="both", expand=True)
 
-    state = {"path": file_path or "", "dirty": False}
+    state = {"path": file_path or "", "dirty": False, "encoding": "utf-8"}
 
     def current_file() -> str:
         return state["path"]
@@ -116,17 +117,18 @@ def _run_standalone(
         if not p:
             return
         try:
-            content = Path(p).read_text(encoding="utf-8")
-        except OSError as e:
+            content, enc = read_text_smart(p)
+        except (OSError, ValueError) as e:
             messagebox.showerror("Błąd", str(e))
             return
         text.delete("1.0", tk.END)
         text.insert("1.0", content)
         state["path"] = p
+        state["encoding"] = enc
         state["dirty"] = False
         root.title(f"Lore Editor — {proj} — {Path(p).name}")
         _set_file_label(p)
-        status_var.set(f"Otwarto: {Path(p).name}")
+        status_var.set(f"Otwarto: {Path(p).name} ({enc})")
         on_file_opened(lore, p, panel)
 
     def _save():
@@ -141,19 +143,24 @@ def _run_standalone(
                 return
             state["path"] = p
         try:
-            Path(p).write_text(text.get("1.0", tk.END), encoding="utf-8")
+            write_text(p, text.get("1.0", tk.END), state.get("encoding", "utf-8"))
             state["dirty"] = False
             _set_file_label(p)
-            status_var.set("Zapisano")
+            status_var.set(f"Zapisano ({state.get('encoding', 'utf-8')})")
             on_file_saved(lore, p, panel)
         except OSError as e:
             messagebox.showerror("Błąd", str(e))
 
     if file_path and Path(file_path).is_file():
-        content = Path(file_path).read_text(encoding="utf-8")
+        try:
+            content, enc = read_text_smart(file_path)
+        except (OSError, ValueError) as e:
+            messagebox.showerror("Błąd", str(e))
+            content, enc = "", "utf-8"
         text.delete("1.0", tk.END)
         text.insert("1.0", content)
         state["path"] = file_path
+        state["encoding"] = enc
         _set_file_label(file_path)
         on_file_opened(lore, file_path, panel)
         root.title(f"Lore Editor — {proj} — {Path(file_path).name}")

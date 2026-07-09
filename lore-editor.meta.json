@@ -1,0 +1,90 @@
+{
+  "name": "lore-editor",
+  "created_at": 1783617502.452147,
+  "modified_at": 1783619446.64445,
+  "bubbles": 2,
+  "user_indexes": [],
+  "query_indexes": {
+    "version": 1,
+    "inv_index": {
+      "Typ": {
+        "Dokument": [
+          "Dok_TCK",
+          "Dok_notatka"
+        ]
+      },
+      "Plik": {
+        "C:\\\\Users\\\\drwis\\\\terapia czaszkowo krzyżowa\\\\TCK.txt": [
+          "Dok_TCK"
+        ],
+        "notatka.txt": [
+          "Dok_notatka"
+        ]
+      },
+      "Opis": {
+        "TCK.txt": [
+          "Dok_TCK"
+        ],
+        "notatka.txt": [
+          "Dok_notatka"
+        ]
+      }
+    },
+    "atom_index": {
+      "a0": [
+        "Dok_TCK",
+        "Dok_notatka"
+      ],
+      "a1": [
+        "Dok_TCK",
+        "Dok_notatka"
+      ],
+      "a2": [
+        "Dok_TCK",
+        "Dok_notatka"
+      ],
+      "a3": [
+        "Dok_TCK"
+      ],
+      "a4": [
+        "Dok_TCK"
+      ],
+      "a6": [
+        "Dok_TCK"
+      ]
+    }
+  },
+  "folded_atoms": 3,
+  "lazy_load": true,
+  "sharded": true,
+  "shard_index": {
+    "version": 1,
+    "world": "lore-editor",
+    "sharded": true,
+    "regions": [
+      {
+        "id": "region_0",
+        "file": "region_0.kafd",
+        "bubbles": [
+          "Dok_TCK"
+        ],
+        "atoms": [
+          "a6"
+        ],
+        "bytes": 624
+      },
+      {
+        "id": "region_1",
+        "file": "region_1.kafd",
+        "bubbles": [
+          "Dok_notatka"
+        ],
+        "atoms": [
+          "a1"
+        ],
+        "bytes": 424
+      }
+    ]
+  },
+  "shard_regions": 2
+}
