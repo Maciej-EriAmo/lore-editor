@@ -1,5 +1,6 @@
 """
 Most do AstraEdit — dołącza panel Lore bez znajomości bazy danych.
+Obsługuje AstraEdit 4.5+ (paned_window) i starsze wersje (paned).
 """
 
 from __future__ import annotations
@@ -8,6 +9,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from lore.store import LoreStore
+
+
+def _editor_shell(gui_app):
+    """Główny kontener edytora — różny w zależności od wersji AstraEdit."""
+    if hasattr(gui_app, "paned_window"):
+        return gui_app.paned_window
+    if hasattr(gui_app, "paned"):
+        return gui_app.paned
+    raise AttributeError(
+        "Nieznany układ AstraEdit (brak paned_window / paned). "
+        "Zaktualizuj vendor/Astraedit lub ASTRAEDIT_PATH."
+    )
 
 
 def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
@@ -22,6 +35,8 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     from lore.panel import LorePanel
 
     root = gui_app.root
+    editor_shell = _editor_shell(gui_app)
+    status_bar = getattr(gui_app, "status_bar", None)
 
     def _active_tab():
         if hasattr(gui_app, "get_current_tab"):
@@ -39,26 +54,27 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
             return getattr(tabs[0], "file_path", "")
         return ""
 
+    editor_shell.pack_forget()
+    if status_bar is not None:
+        status_bar.pack_forget()
+
     outer = ttk.PanedWindow(root, orient=tk.HORIZONTAL)
     outer.pack(fill="both", expand=True)
 
-    gui_app.paned.pack_forget()
-    if hasattr(gui_app, "status_bar"):
-        gui_app.status_bar.pack_forget()
-
     left = ttk.Frame(outer)
     outer.add(left, weight=3)
-    gui_app.paned.pack(in_=left, fill="both", expand=True)
-    if hasattr(gui_app, "status_bar"):
-        gui_app.status_bar.pack(in_=left, side="bottom", fill="x")
+    editor_shell.pack(in_=left, fill="both", expand=True)
 
     right = LorePanel(
         outer,
         lore,
         get_current_file=current_file,
-        width=280,
+        width=300,
     )
     outer.add(right, weight=1)
+
+    if status_bar is not None:
+        status_bar.pack(side="bottom", fill="x")
 
     orig_open = gui_app.open_file
 
