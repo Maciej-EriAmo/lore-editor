@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from lore.backend import LocalLoreBackend, LoreBackendError
+from lore.cynober_patch import LORE_PACK_KEY, LORE_PACK_VERSION, read_kafd_vfs_meta
 from lore.paths import ProjectPaths
 from lore.store import LoreStore
 
@@ -128,9 +129,9 @@ class TestLoreStoreLocal(unittest.TestCase):
         lore.zapisz()
         self.assertNotIn("Anna", lore.wszystkie_wpisy())
         self.assertNotIn("Anna", lore.sasiedzi("Boris"))
-        meta_path = self._paths.root / f"{self._paths.name}.meta.json"
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        for prop, vals in meta["query_indexes"]["inv_index"].items():
+        vfs = read_kafd_vfs_meta(self._paths.world_kafd())
+        inv = (vfs.get(LORE_PACK_KEY) or {}).get("query_indexes", {}).get("inv_index", {})
+        for prop, vals in inv.items():
             for key, bubbles in vals.items():
                 self.assertTrue(bubbles, f"pusty wpis indeksu: {prop}/{key!r}")
                 self.assertNotIn("Anna", bubbles)
@@ -156,6 +157,108 @@ class TestLoreStoreLocal(unittest.TestCase):
         doc = lore.otworz_dokument(path)
         data = lore.podglad(doc)
         self.assertEqual(data.get("Plik"), "rozdzial.txt")
+        lore.close()
+
+    def test_lore_pack_jeden_plik(self):
+        """Zapis = jeden .kafd z osadzonym lore_pack, bez .meta.json i shards/."""
+        lore = self._store()
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Tekst", encoding="utf-8")
+        lore.otworz_dokument(path)
+        lore.dodaj_postac("Anna", notatka="Bohaterka")
+        lore.zapisz()
+        lore.close()
+
+        kafd = self._paths.world_kafd()
+        self.assertTrue(kafd.is_file())
+        self.assertFalse((self._paths.root / f"{self._paths.name}.meta.json").exists())
+        shard_root = self._paths.root / "shards" / self._paths.name
+        self.assertFalse(shard_root.exists())
+
+        vfs = read_kafd_vfs_meta(kafd)
+        pack = vfs.get(LORE_PACK_KEY)
+        self.assertIsInstance(pack, dict)
+        self.assertEqual(pack.get("version"), LORE_PACK_VERSION)
+        # reload
+        lore2 = self._store()
+        self.assertIn("Anna", lore2.wszystkie_wpisy())
+        self.assertEqual(lore2.podglad("Dok_rozdzial").get("Typ"), "Dokument")
+        lore2.close()
+
+    def test_crud_pelny_cykl_z_zapisem(self):
+        """Tworzenie → edycja → odłączenie → usuwanie, każdy krok z reload."""
+        path = str(self._paths.root / "rozdzial.txt")
+        Path(path).write_text("Rozdział.", encoding="utf-8")
+
+        lore = self._store()
+        anna = lore.dodaj_postac("Anna", notatka="Bohaterka")
+        homer = lore.dodaj_wplyw("Homer", notatka="Iliada")
+        pomysl = lore.dodaj_pomysl("Mgła", zrodlo="test")
+        doc = lore.otworz_dokument(path)
+        lore.polacz("Homer", "Anna", "wpływa na")
+        lore.powiaz_z_dokumentem(anna, path)
+        lore.zapisz()
+        lore.close()
+
+        lore = self._store()
+        self.assertTrue(lore.encja_istnieje(anna))
+        self.assertIn(homer, lore.sasiedzi(anna))
+        lore.ustaw(anna, "Notatka", "Zaktualizowana")
+        lore.ustaw(anna, "Opis", "Nowy opis")
+        lore.zapisz()
+        lore.close()
+
+        lore = self._store()
+        self.assertEqual(lore.podglad(anna).get("Notatka"), "Zaktualizowana")
+        lore.odlacz_od_dokumentu(anna, path)
+        self.assertNotIn(anna, [i["nazwa"] for i in lore.lore_przy_dokumencie(path)])
+        self.assertTrue(lore.encja_istnieje(anna))
+        lore.usun_encje(homer)
+        lore.usun_encje(pomysl)
+        lore.zapisz()
+        lore.close()
+
+        lore = self._store()
+        self.assertFalse(lore.encja_istnieje(homer))
+        self.assertFalse(lore.encja_istnieje(pomysl))
+        self.assertTrue(lore.encja_istnieje(anna))
+        self.assertTrue(lore.encja_istnieje(doc))
+        inv = (read_kafd_vfs_meta(self._paths.world_kafd()).get(LORE_PACK_KEY) or {}).get(
+            "query_indexes", {}
+        ).get("inv_index", {})
+        for bubbles in (b for vals in inv.values() for b in vals.values()):
+            self.assertNotIn(homer, bubbles)
+            self.assertNotIn(pomysl, bubbles)
+        lore.close()
+
+    def test_dwa_dokumenty_przetrwaja_zapis(self):
+        """Regresja: po reload nowe atomy nie mogą nadpisać a0.. z wczytanego świata."""
+        p1 = str(self._paths.root / "rozdzial.txt")
+        p2 = str(self._paths.root / "rozdzial2.txt")
+        Path(p1).write_text("Akt I", encoding="utf-8")
+        Path(p2).write_text("Akt II", encoding="utf-8")
+
+        lore = self._store()
+        lore.otworz_dokument(p1)
+        lore.zapisz()
+        lore.close()
+
+        lore = self._store()
+        lore.otworz_dokument(p2)
+        lore.zapisz()
+        lore.close()
+
+        lore = self._store()
+        d1 = lore.podglad("Dok_rozdzial")
+        d2 = lore.podglad("Dok_rozdzial2")
+        self.assertEqual(d1.get("Typ"), "Dokument")
+        self.assertEqual(d1.get("Plik"), "rozdzial.txt")
+        self.assertEqual(d1.get("Opis"), "rozdzial.txt")
+        self.assertEqual(d2.get("Typ"), "Dokument")
+        self.assertEqual(d2.get("Plik"), "rozdzial2.txt")
+        self.assertEqual(d2.get("Opis"), "rozdzial2.txt")
+        self.assertIn("Dok_rozdzial", lore.lista_po_typie("Dokument"))
+        self.assertIn("Dok_rozdzial2", lore.lista_po_typie("Dokument"))
         lore.close()
 
 

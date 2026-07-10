@@ -467,17 +467,23 @@ class LoreStore:
         return _last(self._run(line, strict=strict))
 
     def _inject(self, bubble: str, key: str, value: Any) -> None:
+        verb = "WSTRZYKNIJ"
+        if self.encja_istnieje(bubble):
+            props = self.podglad(bubble)
+            if key in props:
+                verb = "ZAKTUALIZUJ"
+        target = f'"{_esc(bubble)}"'
         if isinstance(value, (dict, list)):
             payload = json.dumps(value, ensure_ascii=False)
-            self._run_line(f'WSTRZYKNIJ "{_esc(key)}" = {payload} DO "{_esc(bubble)}"')
+            self._run_line(f'{verb} "{_esc(key)}" = {payload} DO {target}')
         elif isinstance(value, bool):
             self._run_line(
-                f'WSTRZYKNIJ "{_esc(key)}" = {"true" if value else "false"} DO "{_esc(bubble)}"'
+                f'{verb} "{_esc(key)}" = {"true" if value else "false"} DO {target}'
             )
         elif isinstance(value, (int, float)):
-            self._run_line(f'WSTRZYKNIJ "{_esc(key)}" = {value} DO "{_esc(bubble)}"')
+            self._run_line(f'{verb} "{_esc(key)}" = {value} DO {target}')
         else:
-            self._run_line(f'WSTRZYKNIJ "{_esc(key)}" = "{_esc(str(value))}" DO "{_esc(bubble)}"')
+            self._run_line(f'{verb} "{_esc(key)}" = "{_esc(str(value))}" DO {target}')
 
     @staticmethod
     def _sanitize_entity(name: str) -> str:

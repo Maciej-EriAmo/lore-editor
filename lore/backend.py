@@ -7,8 +7,9 @@ import re
 from pathlib import Path
 from typing import Any, List, Optional, Protocol
 
-from cynober_worlds import WorldRegistry, validate_world_name
+from cynober_worlds import validate_world_name
 
+from lore.cynober_patch import create_world_registry, sync_atom_id_counter
 from lore.paths import ProjectPaths
 
 
@@ -45,7 +46,7 @@ class LocalLoreBackend:
         self._worlds_dir.mkdir(parents=True, exist_ok=True)
         if "CYNOBER_WORLDS_DIR" not in os.environ:
             os.environ["CYNOBER_WORLDS_DIR"] = str(self._worlds_dir)
-        self._registry = WorldRegistry(self._worlds_dir)
+        self._registry = create_world_registry(self._worlds_dir)
         self._project = paths.name
         self._world = None
 
@@ -53,15 +54,18 @@ class LocalLoreBackend:
     def worlds_dir(self) -> Path:
         return self._worlds_dir
 
+    def _set_world(self, world: Any) -> Any:
+        self._world = world
+        sync_atom_id_counter(world.runtime.store)
+        return world
+
     def _attach(self):
         if self._world is not None:
             return self._world
         names = {w["name"] for w in self._registry.list_worlds()}
         if self._project not in names:
-            self._world = self._registry.create(self._project)
-        else:
-            self._world = self._registry.attach(self._project)
-        return self._world
+            return self._set_world(self._registry.create(self._project))
+        return self._set_world(self._registry.attach(self._project))
 
     def execute(self, script: str, *, strict: bool = False) -> List[dict]:
         line = script.strip()
@@ -75,13 +79,13 @@ class LocalLoreBackend:
             name = validate_world_name(m.group(1))
             if name in {w["name"] for w in self._registry.list_worlds()}:
                 raise LoreBackendError(f"Projekt '{name}' już istnieje.")
-            self._world = self._registry.create(name)
+            self._set_world(self._registry.create(name))
             return [{"status": "ok", "action": "CREATE_WORLD", "name": name}]
 
         m = _WORLD_SELECT_RE.match(line)
         if m:
             name = validate_world_name(m.group(1))
-            self._world = self._registry.attach(name)
+            self._set_world(self._registry.attach(name))
             info: dict = {"status": "ok", "action": "ATTACH_WORLD", "world": name}
             cel, prom = m.group(2), m.group(3)
             if cel:

@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from cynober_replicate import PeerRegistry, pull_world, push_world, sync_world
-from cynober_worlds import WorldRegistry
 
+from lore.cynober_patch import create_world_registry
 from lore.paths import ProjectPaths
 
 
@@ -31,7 +31,7 @@ class ZespolLore:
         self.project = paths.name
         self.worlds_dir = paths.root
         self.worlds_dir.mkdir(parents=True, exist_ok=True)
-        self._registry = WorldRegistry(self.worlds_dir)
+        self._registry = create_world_registry(self.worlds_dir)
         self._peers = PeerRegistry(self.worlds_dir)
 
     def ustaw_serwer(self, host: str, port: int = 8080) -> None:

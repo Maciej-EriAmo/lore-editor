@@ -51,9 +51,10 @@ MojaPowiesc/
   .lore-project
   rozdzial_01.txt
   rozdzial_02.md
-  MojaPowiesc.kafd
-  MojaPowiesc.meta.json
+  MojaPowiesc.kafd    # całe lore + indeksy (Lore Pack, jeden plik)
 ```
+
+Stary format (`*.meta.json` + `shards/`) jest automatycznie migrowany przy zapisie.
 
 ## Uruchomienie
 

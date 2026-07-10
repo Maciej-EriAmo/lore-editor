@@ -11,7 +11,98 @@ from typing import Callable, Optional
 from lore.graph_view import open_graph_window
 from lore.store import LoreStore
 from lore.theme import FONT_SMALL, style_listbox, style_text
-from lore.types import RELACJE_LORE
+from lore.types import (
+    POLE_NOTATKA,
+    POLE_OPIS,
+    POLE_TEKST,
+    POLE_ŹRÓDŁO,
+    RELACJE_LORE,
+    TypLore,
+)
+
+_POLA_EDYCJI: dict[str, tuple[str, ...]] = {
+    TypLore.POSTAĆ.value: (POLE_NOTATKA, POLE_OPIS),
+    TypLore.WPŁYW.value: (POLE_NOTATKA, POLE_ŹRÓDŁO),
+    TypLore.POMYSŁ.value: (POLE_TEKST, POLE_ŹRÓDŁO),
+    TypLore.DOKUMENT.value: (POLE_OPIS,),
+    TypLore.MIEJSCE.value: (POLE_NOTATKA, POLE_OPIS),
+    TypLore.SCENA.value: (POLE_NOTATKA, POLE_OPIS),
+    TypLore.INNE.value: (POLE_NOTATKA, POLE_OPIS, POLE_TEKST),
+}
+
+
+def pola_do_edycji(typ: str) -> tuple[str, ...]:
+    """Pola lore edytowalne w panelu — zależne od typu wpisu."""
+    return _POLA_EDYCJI.get(typ, _POLA_EDYCJI[TypLore.INNE.value])
+
+
+class _EditEntityDialog(tk.Toplevel):
+    """Okno edycji notatki, opisu, tekstu pomysłu itd."""
+
+    def __init__(
+        self,
+        parent: LorePanel,
+        lore: LoreStore,
+        name: str,
+        typ: str,
+        fields: tuple[str, ...],
+        data: dict,
+    ) -> None:
+        super().__init__(parent)
+        self._panel = parent
+        self._lore = lore
+        self._name = name
+        self._fields = fields
+        self._widgets: dict[str, tk.Text] = {}
+
+        self.title(f"Edytuj — {name}")
+        self.transient(parent.winfo_toplevel())
+        self.resizable(True, True)
+        self.minsize(320, 240)
+
+        hdr = ttk.Frame(self, padding=8)
+        hdr.pack(fill="x")
+        ttk.Label(hdr, text=name, style="Head.TLabel").pack(anchor="w")
+        ttk.Label(hdr, text=typ, style="Dim.TLabel").pack(anchor="w")
+
+        body = ttk.Frame(self, padding=(8, 0))
+        body.pack(fill="both", expand=True)
+
+        for field in fields:
+            block = ttk.Frame(body)
+            block.pack(fill="x", pady=(0, 8))
+            ttk.Label(block, text=field).pack(anchor="w")
+            height = 5 if field in (POLE_TEKST, POLE_OPIS, POLE_NOTATKA) else 2
+            txt = tk.Text(block, height=height, wrap="word")
+            style_text(txt, height=height)
+            txt.pack(fill="x", expand=True)
+            val = data.get(field)
+            if val is not None and val != "":
+                txt.insert("1.0", str(val))
+            self._widgets[field] = txt
+
+        btns = ttk.Frame(self, padding=8)
+        btns.pack(fill="x")
+        ttk.Button(btns, text="Zapisz", command=self._save).pack(side="right", padx=(4, 0))
+        ttk.Button(btns, text="Anuluj", command=self.destroy).pack(side="right")
+
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.grab_set()
+        if self._widgets:
+            next(iter(self._widgets.values())).focus_set()
+
+    def _save(self) -> None:
+        try:
+            for field, widget in self._widgets.items():
+                value = widget.get("1.0", "end-1c").strip()
+                self._lore.ustaw(self._name, field, value)
+            self._lore.zapisz()
+        except Exception as e:
+            messagebox.showerror("Lore", str(e), parent=self)
+            return
+        self.destroy()
+        self._panel._po_edycji_wpisu(self._name)
 
 
 class LorePanel(ttk.Frame):
@@ -82,6 +173,7 @@ class LorePanel(ttk.Frame):
         ttk.Button(act, text="Powiąż inny wpis…", command=self._dlg_powiaz).pack(fill="x", pady=1)
         ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=1)
         ttk.Button(act, text="Odłącz od rozdziału", command=self._odlacz).pack(fill="x", pady=1)
+        ttk.Button(act, text="Edytuj wpis", command=self._dlg_edytuj).pack(fill="x", pady=1)
         ttk.Button(act, text="Usuń wpis", command=self._usun_wpis).pack(fill="x", pady=1)
         ttk.Button(act, text="Mapa powiązań", command=self._mapa).pack(fill="x", pady=1)
         ttk.Button(act, text="Odśwież", command=self.odswiez).pack(fill="x", pady=1)
@@ -184,8 +276,12 @@ class LorePanel(ttk.Frame):
 
     def _on_double_click(self, _event=None) -> None:
         name = self._selected_name()
-        if name and self._on_open:
+        if not name:
+            return
+        if self._on_open:
             self._on_open(name)
+        else:
+            self._dlg_edytuj()
 
     def _set_detail(self, text: str) -> None:
         self._detail.configure(state="normal")
@@ -281,6 +377,31 @@ class LorePanel(ttk.Frame):
             messagebox.showinfo("Lore", f"Powiązano „{name.strip()}” z rozdziałem.", parent=self)
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
+
+    def _dlg_edytuj(self) -> None:
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo("Lore", "Wybierz wpis do edycji.", parent=self)
+            return
+        try:
+            data = self._lore.podglad(name)
+        except Exception as e:
+            messagebox.showerror("Lore", str(e), parent=self)
+            return
+        typ = str(data.get("Typ") or TypLore.INNE.value)
+        fields = pola_do_edycji(typ)
+        _EditEntityDialog(self, self._lore, name, typ, fields, data)
+
+    def _po_edycji_wpisu(self, name: str) -> None:
+        """Odśwież listę i ponownie pokaż zaktualizowany podgląd."""
+        self.odswiez()
+        for idx, item in enumerate(getattr(self, "_items", [])):
+            if item.get("nazwa") == name:
+                self._list.selection_clear(0, tk.END)
+                self._list.selection_set(idx)
+                self._list.see(idx)
+                break
+        self._on_select()
 
     def _odlacz(self) -> None:
         name = self._selected_name()
