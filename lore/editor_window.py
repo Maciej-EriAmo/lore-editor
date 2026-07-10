@@ -777,17 +777,21 @@ class EditorWindow:
                 self._notebook.select(tab_id)
                 if not self._confirm_save_tab(tab):
                     return
+        zapisz_lore = True
         if self._lore.lore_niezapisane():
-            if not messagebox.askyesno(
+            zapisz_lore = messagebox.askyesno(
                 "Niezapisane lore",
                 "Graf lore ma niezapisane zmiany. Zapisać przed zamknięciem?",
                 parent=self.root,
+            )
+            if not zapisz_lore and not messagebox.askokcancel(
+                "Zamknij bez zapisu lore",
+                "Zamknąć bez zapisu zmian w grafie lore?",
+                parent=self.root,
             ):
-                self.root.destroy()
                 return
         try:
-            self._lore.zapisz()
-            self._lore.close()
+            self._lore.close(zapisz_lore=zapisz_lore)
         except Exception:
             pass
         self.root.destroy()

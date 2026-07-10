@@ -97,11 +97,12 @@ class LoreStore:
         store._ensure_project()
         return store
 
-    def close(self) -> None:
-        try:
-            self.zapisz()
-        except LoreBackendError:
-            pass
+    def close(self, *, zapisz_lore: bool = True) -> None:
+        if zapisz_lore:
+            try:
+                self.zapisz()
+            except LoreBackendError:
+                pass
         self._backend.close()
 
     # ── Projekt ───────────────────────────────────────────────────────────
@@ -468,18 +469,22 @@ class LoreStore:
     def otworz_dokument(self, sciezka_pliku: str) -> str:
         path = str(Path(sciezka_pliku).resolve())
         doc = self._dokument_z_pliku(path)
+        plik = self._paths.plik_wzgledny(path)
         worlds = {w.get("name") for w in self._run_line("LISTA ŚWIATÓW").get("worlds", [])}
         if self._project in worlds:
             self._run_line(f'WYBIERZ ŚWIAT "{_esc(self._project)}"')
         row = self._run_line(f'ZNAJDŹ GDZIE "BĄBEL" = "{_esc(doc)}"', strict=False)
-        plik = self._paths.plik_wzgledny(path)
         if doc not in (row.get("matches") or []):
             self.dodaj(doc, TypLore.DOKUMENT, Plik=plik, Opis=Path(path).name)
         else:
-            self.ustaw(doc, POLE_PLIK, plik)
+            try:
+                cur = self.podglad(doc, surowe=True)
+            except LoreBackendError:
+                cur = {}
+            if cur.get(POLE_PLIK) != plik:
+                self.ustaw(doc, POLE_PLIK, plik)
         self._opened_doc = doc
         self._run_line(f'ROZWIJ "{_esc(doc)}" PROMIEŃ 1', strict=False)
-        self._oznacz_brudne()
         return doc
 
     def powiaz_z_dokumentem(
@@ -626,7 +631,7 @@ class LoreStore:
     def _inject(self, bubble: str, key: str, value: Any) -> None:
         verb = "WSTRZYKNIJ"
         if self.encja_istnieje(bubble):
-            props = self.podglad(bubble)
+            props = self.podglad(bubble, surowe=True)
             if key in props:
                 verb = "ZAKTUALIZUJ"
         target = f'"{_esc(bubble)}"'

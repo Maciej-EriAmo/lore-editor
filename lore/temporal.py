@@ -6,9 +6,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from lore.types import POLE_PLIK, POLE_STANY, POLA_TEMPORALNE, TypLore
-
-_DOC_PREFIX = "Dok_"
+from lore.types import POLE_PLIK, POLA_TEMPORALNE, TypLore
 
 
 def natural_sort_key(text: str) -> list:

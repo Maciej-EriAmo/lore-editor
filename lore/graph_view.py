@@ -101,7 +101,7 @@ class LoreGraphWindow(tk.Toplevel):
             mx, my = (x1 + x2) / 2, (y1 + y2) / 2
             rel = edge.get("rel", "")
             if rel:
-                self._canvas.create_text(mx, my - 8, text=rel, fill="#888", font=("Segoe UI", 7))
+                self._canvas.create_text(mx, my - 8, text=rel, fill="#888", font=("Segoe UI", 9))
 
         for node in nodes:
             nid = node["id"]
@@ -113,7 +113,7 @@ class LoreGraphWindow(tk.Toplevel):
             r = 28 if nid == graph.get("seed") else 22
             self._canvas.create_oval(x - r, y - r, x + r, y + r, fill=color, outline="#fff", width=1)
             label = nid if len(nid) <= 14 else nid[:12] + "…"
-            self._canvas.create_text(x, y, text=label, fill="#111", font=("Segoe UI", 8, "bold"), width=r * 1.8)
+            self._canvas.create_text(x, y, text=label, fill="#111", font=("Segoe UI", 10, "bold"), width=r * 1.8)
 
 
 def open_graph_window(parent, lore: "LoreStore", seed: str | None = None) -> LoreGraphWindow:

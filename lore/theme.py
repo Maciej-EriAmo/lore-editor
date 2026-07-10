@@ -12,10 +12,11 @@ FG = "#d4d4d4"
 FG_DIM = "#9d9d9d"
 ACCENT = "#4a9eff"
 BORDER = "#3c3c3c"
-FONT_UI = ("Segoe UI", 9)
-FONT_HEAD = ("Segoe UI", 11, "bold")
+FONT_UI = ("Segoe UI", 11)
+FONT_HEAD = ("Segoe UI", 13, "bold")
 FONT_MONO = ("Consolas", 11)
-FONT_SMALL = ("Segoe UI", 8)
+FONT_SMALL = ("Segoe UI", 10)
+FONT_LIST = ("Segoe UI", 11)
 
 
 def apply_theme(root: tk.Misc) -> ttk.Style:
@@ -26,6 +27,8 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
         pass
 
     root.configure(bg=BG)
+    root.option_add("*Menu.font", FONT_UI)
+    root.option_add("*Dialog.msg.font", FONT_UI)
 
     style.configure(".", background=BG_PANEL, foreground=FG, font=FONT_UI, borderwidth=0)
     style.configure("TFrame", background=BG_PANEL)
@@ -34,20 +37,21 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
     style.configure("TLabel", background=BG_PANEL, foreground=FG)
     style.configure("Dim.TLabel", background=BG_PANEL, foreground=FG_DIM, font=FONT_SMALL)
     style.configure("Head.TLabel", background=BG_PANEL, foreground=FG, font=FONT_HEAD)
-    style.configure("TButton", padding=(8, 4), background=BG_INPUT, foreground=FG)
+    style.configure("TButton", padding=(10, 5), background=BG_INPUT, foreground=FG, font=FONT_UI)
     style.map("TButton", background=[("active", BORDER)])
-    style.configure("Accent.TButton", padding=(8, 4))
-    style.configure("TEntry", fieldbackground=BG_INPUT, foreground=FG, insertcolor=FG)
+    style.configure("Accent.TButton", padding=(10, 5))
+    style.configure("TEntry", fieldbackground=BG_INPUT, foreground=FG, insertcolor=FG, font=FONT_UI)
     style.configure("TNotebook", background=BG_PANEL, borderwidth=0)
-    style.configure("TNotebook.Tab", background=BG_INPUT, foreground=FG_DIM, padding=(10, 4))
+    style.configure("TNotebook.Tab", background=BG_INPUT, foreground=FG_DIM, padding=(12, 6), font=FONT_UI)
     style.map("TNotebook.Tab", background=[("selected", BG_PANEL)], foreground=[("selected", FG)])
     style.configure("TPanedwindow", background=BORDER)
     style.configure("Vertical.TScrollbar", background=BG_INPUT, troughcolor=BG_PANEL)
+    style.configure("TMenubutton", font=FONT_UI)
 
     return style
 
 
-def style_listbox(lb: tk.Listbox) -> None:
+def style_listbox(lb: tk.Listbox, *, font: tuple[str, int] | None = None) -> None:
     lb.configure(
         bg=BG_INPUT,
         fg=FG,
@@ -56,6 +60,7 @@ def style_listbox(lb: tk.Listbox) -> None:
         highlightthickness=0,
         borderwidth=0,
         activestyle="none",
+        font=font or FONT_LIST,
     )
 
 

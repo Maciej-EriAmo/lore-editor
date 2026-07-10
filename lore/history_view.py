@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 from lore.history import LoreHistoria, SnapshotInfo
 from lore.store import LoreStore
-from lore.theme import FONT_SMALL, style_listbox
+from lore.theme import style_listbox
 
 
 class HistoryWindow(tk.Toplevel):
@@ -41,7 +41,7 @@ class HistoryWindow(tk.Toplevel):
 
         body = ttk.Frame(self, padding=(8, 0))
         body.pack(fill="both", expand=True)
-        self._list = tk.Listbox(body, font=FONT_SMALL, height=12)
+        self._list = tk.Listbox(body, height=12)
         style_listbox(self._list)
         scroll = ttk.Scrollbar(body, orient="vertical", command=self._list.yview)
         self._list.configure(yscrollcommand=scroll.set)
@@ -147,13 +147,17 @@ class HistoryWindow(tk.Toplevel):
         )
 
 
+_open_history: Optional[HistoryWindow] = None
+
+
 def open_history_window(
     parent: tk.Misc,
     lore: LoreStore,
     *,
     on_restored: Optional[Callable[[], None]] = None,
 ) -> None:
-    if isinstance(parent, HistoryWindow) and parent.winfo_exists():
-        parent.lift()
+    global _open_history
+    if _open_history is not None and _open_history.winfo_exists():
+        _open_history.lift()
         return
-    HistoryWindow(parent, lore, on_restored=on_restored)
+    _open_history = HistoryWindow(parent, lore, on_restored=on_restored)

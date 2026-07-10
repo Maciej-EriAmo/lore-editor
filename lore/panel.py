@@ -10,7 +10,7 @@ from typing import Callable, Optional
 
 from lore.graph_view import open_graph_window
 from lore.store import LoreStore
-from lore.theme import FONT_SMALL, style_listbox, style_text
+from lore.theme import style_listbox, style_text
 from lore.types import (
     POLE_NOTATKA,
     POLE_OPIS,
@@ -158,7 +158,7 @@ class LorePanel(ttk.Frame):
 
         list_frame = ttk.Frame(tab_lore)
         list_frame.pack(fill="both", expand=True)
-        self._list = tk.Listbox(list_frame, font=FONT_SMALL, height=10)
+        self._list = tk.Listbox(list_frame, height=10)
         style_listbox(self._list)
         scroll = ttk.Scrollbar(list_frame, orient="vertical", command=self._list.yview)
         self._list.configure(yscrollcommand=scroll.set)

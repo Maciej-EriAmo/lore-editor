@@ -84,7 +84,7 @@ def open_print_preview(
             text=f"Strona {sl.number}",
             anchor="nw",
             fill="#888888",
-            font=("Segoe UI", 8),
+            font=("Segoe UI", 10),
         )
         body = sl.preview or "(pusto)"
         if len(body) > 900:
@@ -95,7 +95,7 @@ def open_print_preview(
             text=body,
             anchor="nw",
             fill="#222222",
-            font=("Times New Roman", 7),
+            font=("Times New Roman", 9),
             width=page_w - 2 * margin_px - 12,
         )
 
