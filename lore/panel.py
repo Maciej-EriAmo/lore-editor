@@ -14,6 +14,7 @@ from lore.theme import FONT_SMALL, style_listbox, style_text
 from lore.types import (
     POLE_NOTATKA,
     POLE_OPIS,
+    POLE_STANY,
     POLE_TEKST,
     POLE_ŹRÓDŁO,
     RELACJE_LORE,
@@ -192,7 +193,11 @@ class LorePanel(ttk.Frame):
         ttk.Button(sf, text="Szukaj", command=self._szukaj).pack(side="left")
         ttk.Label(
             tab_search,
-            text="Wyniki pojawią się w zakładce Rozdział.",
+            text=(
+                "Zapytanie semantyczne lub fraza.\n"
+                "Np.: postacie przy Anna nie od 5\n"
+                "typ:Postać \"sojusznik\"  ·  wyniki → Rozdział"
+            ),
             style="Dim.TLabel",
             wraplength=240,
         ).pack(anchor="w", pady=8)
@@ -244,7 +249,9 @@ class LorePanel(ttk.Frame):
             self._set_detail(f"Błąd: {e}")
         for it in items:
             typ = it.get("typ", "?")
-            self._list.insert(tk.END, f"  {typ:<8}  {it['nazwa']}")
+            temp = it.get("temperatura") or ""
+            badge = f"[{temp[:4]}] " if temp else ""
+            self._list.insert(tk.END, f"  {badge}{typ:<8}  {it['nazwa']}")
         self._items = items
         if items and not self._list.curselection():
             self._list.selection_set(0)
@@ -264,10 +271,18 @@ class LorePanel(ttk.Frame):
         if not name:
             return
         try:
-            data = self._lore.podglad(name)
-            lines = [f"【{name}】"]
+            as_of = self._lore.dokument_biezacy(self._get_file() or None)
+            data = self._lore.podglad(name, as_of=as_of)
+            ctx = data.get("_as_of", "")
+            temp = data.get("_temperatura", "")
+            hdr = f"【{name}】"
+            if ctx:
+                hdr += f"  ·  rozdział: {ctx}"
+            if temp:
+                hdr += f"  ·  {temp}"
+            lines = [hdr]
             for k, v in sorted(data.items()):
-                if k in ("BĄBEL", "_relations") or v in (None, ""):
+                if k.startswith("_") or k in ("BĄBEL", POLE_STANY) or v in (None, ""):
                     continue
                 lines.append(f"{k}: {v}")
             self._set_detail("\n".join(lines))
@@ -384,7 +399,8 @@ class LorePanel(ttk.Frame):
             messagebox.showinfo("Lore", "Wybierz wpis do edycji.", parent=self)
             return
         try:
-            data = self._lore.podglad(name)
+            as_of = self._lore.dokument_biezacy(self._get_file() or None)
+            data = self._lore.podglad(name, as_of=as_of)
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
             return
@@ -463,15 +479,18 @@ class LorePanel(ttk.Frame):
         if not q:
             return
         try:
-            hits = self._lore.szukaj(q)
+            hits = self._lore.zapytaj(q)
         except Exception as e:
             messagebox.showerror("Lore", str(e), parent=self)
             return
         self._notebook.select(0)
         self._list.delete(0, tk.END)
-        self._items = [{"nazwa": h, "typ": "?", "opis": ""} for h in hits]
-        for h in hits:
-            self._list.insert(tk.END, f"  {'?':<8}  {h}")
+        self._items = hits
+        for it in hits:
+            typ = it.get("typ", "?")
+            temp = it.get("temperatura") or ""
+            badge = f"[{temp[:4]}] " if temp else ""
+            self._list.insert(tk.END, f"  {badge}{typ:<8}  {it['nazwa']}")
         self._set_detail(f"Znaleziono: {len(hits)}")
 
     def _mapa(self) -> None:

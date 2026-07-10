@@ -17,7 +17,20 @@ def on_file_opened(lore: "LoreStore", path: str, panel: Optional["LorePanel"] = 
         panel.odswiez()
 
 
-def on_file_saved(lore: "LoreStore", path: str, panel: Optional["LorePanel"] = None) -> None:
+def on_file_saved(
+    lore: "LoreStore",
+    path: str,
+    panel: Optional["LorePanel"] = None,
+    *,
+    content: Optional[str] = None,
+    encoding: str = "utf-8",
+) -> None:
+    """Transakcyjny zapis: tekst (atomowo) + flush lore w jednym kroku."""
+    from lore.transaction import zapisz_rozdzial_i_lore
+
+    if content is not None and path:
+        zapisz_rozdzial_i_lore(lore, path, content, encoding, panel)
+        return
     if path:
         lore.otworz_dokument(path)
     lore.zapisz()

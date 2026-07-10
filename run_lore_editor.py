@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Lore Editor — edytor rozdziałów z panelem lore (bez KarminQL).
+Lore Editor — edytor rozdziałów z panelem lore.
 
     cd ~/Documents/MojaPowiesc && lore-editor
     lore-editor --project-dir .
+
+Pierwsze uruchomienie tworzy .lore-project i .lore-history/ (snapshoty).
+Pomoc: F1 w aplikacji lub lore-editor --help.
 """
 
 from __future__ import annotations
@@ -59,10 +62,13 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         prog="lore-editor",
-        description="Lore Editor — edytor rozdziałów z panelem lore (postacie, pomysły, wydruk DOCX)",
+        description=(
+            "Lore Editor — rozdziały, panel lore, historia zmian, eksport DOCX"
+        ),
         epilog=(
-            "Projekt: utwórz .lore-project z linią name=NazwaProjektu lub uruchom z folderu powieści. "
-            "Pomoc w aplikacji: menu Pomoc lub F1."
+            "Projekt: .lore-project (name=Nazwa) lub uruchom z folderu powieści. "
+            "Przy pierwszym starcie: .lore-history/ ze snapshotami. "
+            "Pomoc: menu Pomoc lub F1."
         ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")

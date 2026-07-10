@@ -54,3 +54,8 @@ POLE_OPIS = "Opis"
 POLE_TEKST = "Tekst"
 POLE_ŹRÓDŁO = "Źródło"
 POLE_PLIK = "Plik"
+POLE_STANY = "Stany"
+POLE_DOTYK = "OstatniDotyk"
+
+# Pola, które mogą różnić się między rozdziałami (mutacja na osi czasu)
+POLA_TEMPORALNE: tuple[str, ...] = (POLE_NOTATKA, POLE_OPIS)

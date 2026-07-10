@@ -12,10 +12,11 @@ from typing import Optional
 from lore.document_hooks import on_file_opened, on_file_saved
 from lore.panel import LorePanel
 from lore.store import LoreStore
-from lore.text_io import read_text_smart, write_text
+from lore.text_io import read_text_smart, write_text_atomic
 from lore.theme import apply_theme, style_text
 from lore.export_docx import DocxExportError, export_available, export_manuscript_docx
 from lore.help_view import open_help
+from lore.history_view import open_history_window
 from lore.manuscript import paginate, profile_for_preset
 from lore.print_preview import open_print_preview
 from lore.typography import (
@@ -222,6 +223,9 @@ class EditorWindow:
         menubar.add_cascade(label="Lore", menu=lore_m)
         lore_m.add_command(label="Odśwież panel", command=self._panel.odswiez)
         lore_m.add_command(label="Zapisz projekt lore", command=self._save_lore)
+        lore_m.add_separator()
+        lore_m.add_command(label="Utwórz punkt przywracania…", command=self._create_snapshot)
+        lore_m.add_command(label="Historia zmian…", command=self._show_history)
 
         view_m = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Wygląd", menu=view_m)
@@ -309,6 +313,18 @@ class EditorWindow:
         help_m.add_command(
             label="Panel Lore",
             command=lambda: open_help(self.root, "Panel Lore"),
+        )
+        help_m.add_command(
+            label="Kontekst czasowy",
+            command=lambda: open_help(self.root, "Kontekst czasowy"),
+        )
+        help_m.add_command(
+            label="Zapytania semantyczne",
+            command=lambda: open_help(self.root, "Zapytania semantyczne"),
+        )
+        help_m.add_command(
+            label="Historia zmian",
+            command=lambda: open_help(self.root, "Historia zmian"),
         )
         help_m.add_command(
             label="Pliki i Lore Pack",
@@ -411,11 +427,24 @@ class EditorWindow:
                 return False
             tab.path = path
 
+        content = tab.text.get("1.0", tk.END)
         try:
-            write_text(tab.path, tab.text.get("1.0", tk.END), tab.encoding)
+            on_file_saved(
+                self._lore,
+                tab.path,
+                self._panel,
+                content=content,
+                encoding=tab.encoding,
+            )
         except OSError as e:
             messagebox.showerror("Błąd zapisu", str(e), parent=self.root)
             return False
+        except Exception as e:
+            messagebox.showerror(
+                "Zapis",
+                f"Tekst zapisany, ale lore nie: {e}\nSpróbuj „Zapisz projekt lore”.",
+                parent=self.root,
+            )
 
         tab.dirty = False
         tab_id = self._tab_id_for(tab)
@@ -423,7 +452,6 @@ class EditorWindow:
             self._update_tab_title(tab_id)
         self._update_window_title()
         self._update_status()
-        on_file_saved(self._lore, tab.path, self._panel)
         return True
 
     def _tab_id_for(self, tab: _TabState) -> Optional[str]:
@@ -674,22 +702,67 @@ class EditorWindow:
 
     def _save_lore(self) -> None:
         try:
-            self._lore.zapisz()
+            self._lore.zapisz(historia_auto=False)
             self._panel.odswiez()
             self._status_var.set("Projekt lore zapisany")
         except Exception as e:
             messagebox.showerror("Błąd", str(e), parent=self.root)
+
+    def _create_snapshot(self) -> None:
+        from tkinter import simpledialog
+
+        opis = simpledialog.askstring(
+            "Punkt przywracania",
+            "Opis (opcjonalnie):",
+            parent=self.root,
+        )
+        if opis is None:
+            return
+        try:
+            info = self._lore.utworz_snapshot(opis)
+            if info:
+                self._status_var.set(f"Snapshot: {info.label}")
+            else:
+                messagebox.showinfo("Historia", "Brak zmian od ostatniego snapshotu.", parent=self.root)
+        except Exception as e:
+            messagebox.showerror("Historia", str(e), parent=self.root)
+
+    def _show_history(self) -> None:
+        open_history_window(self.root, self._lore, on_restored=self._odswiez_z_dysku)
+
+    def _odswiez_z_dysku(self) -> None:
+        """Po przywróceniu snapshotu — przeładuj otwarte karty z plików."""
+        for tab_id, tab in list(self._tabs.items()):
+            if not tab.path or not Path(tab.path).is_file():
+                continue
+            try:
+                content, enc = read_text_smart(tab.path)
+            except (OSError, ValueError):
+                continue
+            tab.text.delete("1.0", tk.END)
+            tab.text.insert("1.0", content)
+            tab.encoding = enc
+            tab.dirty = False
+            self._update_tab_title(tab_id)
+        self._panel.odswiez()
+        self._update_window_title()
+        self._update_status()
 
     def _schedule_autosave(self) -> None:
         def _tick():
             for tab_id, tab in list(self._tabs.items()):
                 if tab.dirty and tab.path:
                     try:
-                        write_text(tab.path, tab.text.get("1.0", tk.END), tab.encoding)
+                        on_file_saved(
+                            self._lore,
+                            tab.path,
+                            self._panel,
+                            content=tab.text.get("1.0", tk.END),
+                            encoding=tab.encoding,
+                        )
                         tab.dirty = False
                         self._update_tab_title(tab_id)
-                        on_file_saved(self._lore, tab.path, self._panel)
-                    except OSError:
+                    except (OSError, Exception):
                         pass
             self._update_window_title()
             self._update_status()
@@ -704,6 +777,14 @@ class EditorWindow:
                 self._notebook.select(tab_id)
                 if not self._confirm_save_tab(tab):
                     return
+        if self._lore.lore_niezapisane():
+            if not messagebox.askyesno(
+                "Niezapisane lore",
+                "Graf lore ma niezapisane zmiany. Zapisać przed zamknięciem?",
+                parent=self.root,
+            ):
+                self.root.destroy()
+                return
         try:
             self._lore.zapisz()
             self._lore.close()

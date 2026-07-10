@@ -21,21 +21,30 @@ SZYBKI START
 2. Uruchom: lore-editor
 3. Plik → Otwórz… — wybierz rozdział (.txt / .md).
 4. Panel Lore (po prawej) → + Postać / + Pomysł / + Wpływ.
-5. Plik → Zapisz projekt lore — zapisuje graf postaci i powiązań.
+5. Ctrl+S — zapisuje rozdział i lore w jednym kroku.
 
-DWA RODZAJE ZAPISU
-• Zapisz (Ctrl+S) — zapisuje TEKST rozdziału na dysku.
-• Zapisz projekt lore — zapisuje LORE (postacie, relacje) w jednym pliku Nazwa.kafd.
+PIERWSZE URUCHOMIENIE
+Automatycznie powstaje folder .lore-history/ (snapshoty ratunkowe).
+Istniejący projekt dostaje snapshot „Stan początkowy projektu”.
+Uwzględnij .lore-history/ w backupie (chmura, dysk zewnętrzny).
 
-Tekst rozdziału i lore to osobne warstwy: .txt to Twoja proza, .kafd to graf powiązań.
+ZAPIS
+• Ctrl+S / autosave — tekst rozdziału + graf lore (.kafd) transakcyjnie.
+• Lore → Zapisz projekt lore — tylko graf, bez ponownego zapisu tekstu.
+• Przy zamknięciu — ostrzeżenie, jeśli lore jest niezapisane.
+
+WARSTWY PROJEKTU
+• .txt / .md — Twoja proza (rozdziały)
+• .kafd — graf lore (postacie, relacje, stany czasowe)
+• .lore-history/ — historia zmian (przywracanie całego projektu)
 
 PROJEKT
-• Nazwa projektu = nazwa folderu lub wpis w .lore-project.
-• Plik lore: NazwaProjektu.kafd (format Lore Pack — jeden plik, bez shards/).
-• Stary format (*.meta.json + shards/) migruje się automatycznie przy zapisie.
+• Nazwa = nazwa folderu lub wpis w .lore-project.
+• Format lore: Lore Pack — jeden plik .kafd, bez shards/.
+• Stary format (*.meta.json + shards/) migruje się przy zapisie.
 
 PASEK STATUSU
-Pokazuje: ścieżkę · liczbę słów · liczbę stron · (dla Courier) ~minut scenariusza · kodowanie.
+Ścieżka · słowa · strony · (Courier) ~minut scenariusza · kodowanie.
 """,
 )
 
@@ -45,21 +54,27 @@ _topic(
 PLIK
   Ctrl+N          Nowa karta
   Ctrl+O          Otwórz plik
-  Ctrl+S          Zapisz rozdział
+  Ctrl+S          Zapisz rozdział + lore
   Ctrl+Shift+S    Zapisz jako…
   Ctrl+W          Zamknij kartę
 
 EDYCJA
   Ctrl+Z          Cofnij
   Ctrl+Y          Ponów
-  Ctrl+F          Znajdź
+  Ctrl+F          Znajdź (w tekście rozdziału)
 
 INNE
   F1              Ta pomoc (przewodnik)
   Środkowy klik   Zamknij kartę (na nazwie karty)
   × na karcie     Zamknij kartę
 
-Autosave rozdziału: co 60 s (tylko pliki już zapisane na dysku).
+MENU LORE
+  Odśwież panel
+  Zapisz projekt lore
+  Utwórz punkt przywracania…
+  Historia zmian…
+
+Autosave: co 60 s (tylko zapisane pliki) — tekst + lore + snapshot.
 """,
 )
 
@@ -129,26 +144,86 @@ Podgląd to orientacyjna paginacja — przed wysyłką do wydawcy sprawdź DOCX 
 _topic(
     "Panel Lore",
     """
-Panel po prawej stronie — zakładki Rozdział · Szukaj · Zespół.
+Panel po prawej — zakładki Rozdział · Szukaj · Zespół.
 
-WAŻNE: Otwórz rozdział w edytorze (karta z plikiem), zanim powiążesz lore.
+WAŻNE: Otwórz rozdział w edytorze, zanim powiążesz lore.
 
 DODAWANIE
-  + Postać    Tworzy postać; przy otwartym rozdziale — auto-powiązanie
-  + Pomysł    Zapisuje myśl i wiąże z rozdziałem
-  + Wpływ     Inspiracja (np. autor, mit) — relacja „inspiruje”
+  + Postać    Postać; przy otwartym rozdziale — auto-powiązanie
+  + Pomysł    Myśl powiązana z rozdziałem
+  + Wpływ     Inspiracja (autor, mit…) — relacja „inspiruje”
 
 POWIĄZANIA
   Powiąż z rozdziałem   Wpis z listy → ten plik
-  Powiąż inny wpis…     Wpisz nazwę ręcznie
-  Połącz z…             Relacja między dwoma wpisami lore
-  Odłącz od rozdziału   Usuwa więź z plikiem; wpis zostaje
-  Usuń wpis             Trwałe skasowanie (Delete na liście)
+  Powiąż inny wpis…     Nazwa ręcznie
+  Połącz z…             Relacja między dwoma wpisami
+  Odłącz od rozdziału   Usuwa więź z plikiem
+  Usuń wpis             Trwałe skasowanie (Delete) — poprzedza snapshot
+  Edytuj wpis           Notatka / opis w kontekście rozdziału
+
+LISTA ROZDZIAŁU
+  Wpisy sortowane po „temperaturze” (gorące na górze).
+  Badge [gorą] / [ciep] / [zimn] — jak świeży jest wpis.
+  Wpisy „grobowca” są ukryte (dawny balast).
 
 INNE
-  Mapa powiązań   Graf koligacji
-  Szukaj          Fraza w notatkach i opisach
+  Mapa powiązań   Graf wokół rozdziału lub wpisu
+  Szukaj          Zapytania semantyczne — patrz temat „Zapytania semantyczne”
   Zespół          Sync przez cynober-server (tryb lokalny)
+""",
+)
+
+_topic(
+    "Kontekst czasowy",
+    """
+Postać w rozdziale 1 może być sojusznikiem, w rozdziale 10 — wrogiem.
+Lore Editor nie trzyma jednego globalnego stanu — zapisuje mutacje per rozdział.
+
+JAK TO DZIAŁA
+• Otwórz rozdział w edytorze (karta z plikiem).
+• Edytuj notatkę lub opis postaci (Edytuj wpis).
+• Zmiana trafia do pola Stany w .kafd — powiązana z tym rozdziałem.
+• Panel pokazuje stan adekwatny do bieżącego pliku, nie do całej powieści.
+
+PODGLĄD
+Nagłówek szczegółów wpisu zawiera:
+  · rozdział (kontekst as_of)
+  · temperaturę wpisu
+
+OŚ CZASU
+Rozdziały są sortowane po ścieżce pliku (np. rozdzial_01, rozdzial_02…).
+Zapytania „nie od 5” korzystają z tej kolejności.
+
+WSKAZÓWKA
+Pracując nad rozdziałem 2, nie zobaczysz notatki dopisanej w rozdziale 10 —
+dopóki nie otworzysz pliku z aktywnością w tym rozdziale lub późniejszym.
+""",
+)
+
+_topic(
+    "Zapytania semantyczne",
+    """
+Zakładka Szukaj w panelu lore — frazy tekstowe i zapytania po grafie.
+
+PRZYKŁADY
+  postacie przy Anna
+  postacie przy Twierdza nie od 5
+  typ:Postać "sojusznik"
+  "mgła nad rzeką"
+
+SKŁADNIA
+  postacie / miejsca / typ:Postać   — filtr typu
+  przy X / powiązane z X            — sąsiedzi encji X w grafie
+  nie od N                          — ostatnie wystąpienie przed N-tym rozdziałem
+  "fraza"                           — szukanie w notatkach, opisach, tekstach pomysłów
+
+Wyniki pojawiają się w zakładce Rozdział (z badge temperatury).
+
+PROSTA FRAZA
+Sam tekst bez słów kluczowych działa jak dawniej — przeszukuje pola tekstowe.
+
+ZAPYTANIA ZŁOŻONE
+Można łączyć: typ + przy + nie od + fraza w cudzysłowie.
 """,
 )
 
@@ -157,22 +232,61 @@ _topic(
     """
 STRUKTURA FOLDERU
   MojaPowiesc/
-    .lore-project       Opcjonalny znacznik (name=MojaPowiesc)
-    rozdzial_01.txt     Tekst — edytujesz w edytorze
-    MojaPowiesc.kafd    Całe lore w jednym pliku (Lore Pack)
+    .lore-project         Znacznik (name=MojaPowiesc)
+    .lore-history/        Historia zmian (auto)
+    rozdzial_01.txt       Tekst rozdziału
+    MojaPowiesc.kafd      Graf lore (Lore Pack)
 
 CO JEST W .kafd
-  • Bąble: postacie, pomysły, dokumenty (wskaźnik do .txt), wpływy
+  • Bąble: postacie, pomysły, dokumenty, wpływy, miejsca…
   • Relacje: występuje w, koliguje z, wpływa na, inspiruje…
+  • Stany — mutacje notatek/opisów per rozdział (kontekst czasowy)
+  • OstatniDotyk — znacznik aktywności wpisu (termodynamika)
   • Indeksy zapytań (cache) — odtwarzalne z danych
 
 CO NIE JEST W .kafd
-  • Treść rozdziałów — zawsze w plikach .txt / .md
+  • Treść rozdziałów — zawsze w .txt / .md
 
-.gitignore zaleca ignorowanie *.kafd — lore traktuj jak dane robocze.
+.gitignore często ignoruje *.kafd — rozważ commitowanie lore w prywatnym repo.
+
+BACKUP (pełny projekt)
+  pliki .txt / .md
+  Nazwa.kafd
+  .lore-project
+  .lore-history/        ← warstwa ratunkowa
+""",
+)
+
+_topic(
+    "Historia zmian",
+    """
+Folder .lore-history/ tworzy się AUTOMATYCZNIE przy pierwszym uruchomieniu
+edytora w katalogu projektu (README.txt wyjaśnia przeznaczenie folderu).
+
+CO ZAWIERA KAŻDY SNAPSHOT
+  • Nazwa.kafd — cały graf lore
+  • rozdzialy/ — kopie wszystkich .txt i .md (z podfolderami)
+  • .lore-project — jeśli istnieje
+
+KIEDY POWSTAJĄ KOPIE
+  • Ctrl+S / autosave rozdziału (z etykietą nazwy pliku)
+  • Co ~2 min przy zapisie lore (jeśli coś się zmieniło)
+  • Przed usunięciem wpisu lore
+  • Przed przywróceniem starszej wersji
+  • Ręcznie: Lore → Utwórz punkt przywracania…
+  • Pierwsze otwarcie istniejącego projektu: „Stan początkowy”
+
+PRZYWRACANIE
+  Lore → Historia zmian… → wybierz datę → Przywróć.
+  Bieżący stan zapisywany jest automatycznie przed przywróceniem.
+  Otwarte karty rozdziałów przeładowują się z dysku.
+
+ROTACJA
+Przechowywane jest do 40 ostatnich snapshotów.
 
 BACKUP
-Kopiuj folder projektu: pliki tekstowe + .kafd + .lore-project.
+Nie pomijaj .lore-history/ — ratuje przy skasowanym rozdziale,
+zepsutym .kafd lub przypadkowym usunięciu postaci.
 """,
 )
 
@@ -183,10 +297,14 @@ Lore Editor v{__version__}
 Silnik lore: Cynober DB (cynober-db >= 8.0.1)
 Repozytorium: github.com/Maciej-EriAmo/lore-editor
 
+Funkcje: kontekst czasowy lore, zapytania semantyczne, termodynamika wpisów,
+historia zmian projektu, transakcyjny zapis tekstu + grafu.
+
 Tryb offline-first — bez serwera, bez Lua.
 Opcjonalnie: --rpc dla współpracy przez cynober-server.
 
 Instalacja:
+  pip install "cynober-db>=8.0.1"
   pip install -e .
   lore-editor
 

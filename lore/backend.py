@@ -124,6 +124,18 @@ class LocalLoreBackend:
         self._registry.mark_dirty(world.name)
         return results
 
+    def reload(self) -> None:
+        """Przeładuj świat z dysku (po przywróceniu snapshotu)."""
+        if self._world is not None:
+            self._world.dirty = False
+            try:
+                self._registry.release(self._world.name)
+            except ValueError:
+                pass
+            self._world = None
+        self._registry = create_world_registry(self._worlds_dir)
+        self._attach()
+
     def close(self) -> None:
         if self._world is not None:
             try:

@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from cynober_worlds import validate_world_name
 
@@ -22,12 +23,24 @@ from lore.backend import (
     connect_local,
     connect_rpc,
 )
+from lore.history import LoreHistoria, SnapshotInfo
+from lore.lifecycle import metadane_zycia, sortuj_po_temperaturze
 from lore.paths import LORE_PROJECT_FILE, ProjectPaths
+from lore.query import parsuj_zapytanie, wykonaj_zapytanie
 from lore.team_sync import ZespolLore
+from lore.temporal import (
+    dokumenty_uporzadkowane,
+    parse_stany,
+    pole_temporalne,
+    scal_stan,
+    ustaw_stan_rozdzialu,
+)
 from lore.types import (
+    POLE_DOTYK,
     POLE_NOTATKA,
     POLE_OPIS,
     POLE_PLIK,
+    POLE_STANY,
     POLE_TEKST,
     POLE_ŹRÓDŁO,
     REL_TO_GRAPH,
@@ -52,6 +65,8 @@ class LoreStore:
         self._paths = paths
         self._project = paths.name
         self._opened_doc: Optional[str] = None
+        self._dirty = False
+        self._historia = LoreHistoria(paths.root, paths.name)
 
     @classmethod
     def open_local(
@@ -97,11 +112,49 @@ class LoreStore:
         if self._project not in names:
             self._run_line(f'UTWÓRZ ŚWIAT "{_esc(self._project)}"')
         self._run_line(f'WYBIERZ ŚWIAT "{_esc(self._project)}"')
+        if self.tryb_lokalny():
+            self._historia.inicjalizuj()
+            self._historia.utworz_bazowy_jesli_pusty()
 
-    def zapisz(self) -> None:
+    def zapisz(self, *, historia_auto: bool = True, historia_label: str = "") -> None:
         """Zapis lore na dysk (pisarz: „Zapisz projekt”)."""
         self._odswiez_indeksy()
         self._run_line("ZAPISZ ŚWIAT")
+        self._dirty = False
+        if historia_auto and self.tryb_lokalny():
+            if historia_label:
+                self._historia.utworz(label=historia_label, reason="save")
+            else:
+                self._historia.moze_auto_snapshot()
+
+    def historia(self) -> LoreHistoria:
+        return self._historia
+
+    def utworz_snapshot(self, opis: str = "") -> Optional[SnapshotInfo]:
+        """Ręczny punkt przywracania (lore + rozdziały)."""
+        if not self.tryb_lokalny():
+            raise LoreBackendError("Historia wymaga trybu lokalnego.")
+        return self._historia.utworz(label=opis, reason="manual", force=True)
+
+    def lista_historii(self) -> List[SnapshotInfo]:
+        return self._historia.lista()
+
+    def przywroc_historie(self, snap_id: str) -> SnapshotInfo:
+        """Przywraca snapshot; bieżący stan zapisywany jest automatycznie."""
+        if not self.tryb_lokalny():
+            raise LoreBackendError("Historia wymaga trybu lokalnego.")
+        info = self._historia.przywroc(snap_id)
+        backend = self._backend
+        if hasattr(backend, "reload"):
+            backend.reload()  # type: ignore[attr-defined]
+        self._opened_doc = None
+        self._dirty = False
+        self._run_line(f'WYBIERZ ŚWIAT "{_esc(self._project)}"')
+        return info
+
+    def lore_niezapisane(self) -> bool:
+        """Czy graf lore ma zmiany niezsynchronizowane z .kafd."""
+        return self._dirty
 
     def nazwa_projektu(self) -> str:
         return self._project
@@ -147,6 +200,8 @@ class LoreStore:
         for key, val in extra.items():
             if val is not None and val != "":
                 self._inject(name, key, val)
+        self._dotknij(name)
+        self._oznacz_brudne()
         return name
 
     def dodaj_postac(self, nazwa: str, *, notatka: str = "", opis: str = "") -> str:
@@ -165,20 +220,63 @@ class LoreStore:
     ) -> str:
         return self.dodaj(nazwa, TypLore.WPŁYW, zrodlo=zrodlo, notatka=notatka)
 
-    def ustaw(self, encja: str, pole: str, wartosc: Any) -> None:
-        """Uzupełnij notatkę, opis lub inną cechę."""
-        self._inject(self._sanitize_entity(encja), pole, wartosc)
+    def ustaw(
+        self,
+        encja: str,
+        pole: str,
+        wartosc: Any,
+        *,
+        as_of: Optional[str] = None,
+    ) -> None:
+        """Uzupełnij cechę — w kontekście rozdziału zapisuje mutację czasową."""
+        name = self._sanitize_entity(encja)
+        doc = as_of or self._opened_doc
+        data = self.podglad(name, as_of=doc, surowe=True)
+        typ = str(data.get("Typ") or TypLore.INNE.value)
 
-    def podglad(self, encja: str) -> Dict[str, Any]:
-        """Szczegóły encji do panelu bocznego."""
-        row = self._run_line(f'POKAŻ "{_esc(self._sanitize_entity(encja))}"')
+        if doc and pole_temporalne(pole, typ):
+            stany = parse_stany(data.get(POLE_STANY))
+            stany = ustaw_stan_rozdzialu(stany, doc, pole, wartosc)
+            self._inject(name, POLE_STANY, stany)
+        else:
+            self._inject(name, pole, wartosc)
+
+        self._dotknij(name)
+        self._oznacz_brudne()
+
+    def podglad(
+        self,
+        encja: str,
+        *,
+        as_of: Optional[str] = None,
+        surowe: bool = False,
+    ) -> Dict[str, Any]:
+        """Szczegóły encji; as_of = bąbel dokumentu dla widoku „w tym rozdziale”."""
+        name = self._sanitize_entity(encja)
+        row = self._run_line(f'POKAŻ "{_esc(name)}"')
         raw = row.get("data") or row.get("bubble") or {}
         if isinstance(raw, dict) and "properties" in raw:
             out = dict(raw.get("properties") or {})
             out["_relations"] = list(raw.get("relations") or [])
-            out["BĄBEL"] = encja
+            out["BĄBEL"] = name
+        else:
+            out = dict(raw) if isinstance(raw, dict) else {}
+
+        if surowe:
             return out
-        return dict(raw) if isinstance(raw, dict) else {}
+
+        ctx = as_of or self._opened_doc
+        stany = parse_stany(out.get(POLE_STANY))
+        kolejnosc = self._kolejnosc_dokumentow()
+        resolved = scal_stan(out, stany, as_of=ctx, kolejnosc=kolejnosc)
+        resolved["_relations"] = out.get("_relations", [])
+        resolved["BĄBEL"] = name
+        if ctx:
+            resolved["_as_of"] = ctx
+        meta = metadane_zycia(name, out, kolejnosc, biezacy_doc=ctx)
+        resolved["_temperatura"] = meta["temperatura"]
+        resolved["_ostatni_rozdzial"] = meta["ostatni_rozdzial"]
+        return resolved
 
     # ── Relacje (koligacje, wpływy) ───────────────────────────────────────
 
@@ -196,23 +294,32 @@ class LoreStore:
         if not self.encja_istnieje(b):
             raise LoreBackendError(f"Nie ma wpisu „{dokad}”.")
         self._run_line(f'POŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
+        self._dotknij(a)
+        self._dotknij(b)
+        self._oznacz_brudne()
 
     def rozlacz(self, skad: str, dokad: str, relacja: str) -> None:
         rel_key = REL_TO_GRAPH.get(relacja, self._slug_rel(relacja))
         a = self._sanitize_entity(skad)
         b = self._sanitize_entity(dokad)
         self._run_line(f'ROZŁĄCZ "{_esc(a)}" Z "{_esc(b)}" JAKO "{_esc(rel_key)}"')
+        self._dotknij(a)
+        self._dotknij(b)
+        self._oznacz_brudne()
 
     def usun_encje(self, encja: str) -> None:
         """Trwale usuwa wpis lore (postać, pomysł, wpływ…)."""
         name = self._sanitize_entity(encja)
         if not self.encja_istnieje(name):
             raise LoreBackendError(f"Nie ma wpisu „{encja}”.")
+        if self.tryb_lokalny():
+            self._historia.utworz(label=f"przed usunięciem {name}", reason="pre_delete", force=True)
         self._rozlacz_wszystkie_relacje(name)
         self._run_line(f'USUŃ BĄBEL "{_esc(name)}"')
         if self._opened_doc == name:
             self._opened_doc = None
         self._odswiez_indeksy()
+        self._oznacz_brudne()
 
     def odlacz_od_dokumentu(
         self,
@@ -231,7 +338,9 @@ class LoreStore:
             removed = self._rozlacz_jesli_polaczone(doc, a)
         if not removed:
             raise LoreBackendError(f"„{encja}” nie jest powiązane z tym rozdziałem.")
+        self._dotknij(a)
         self._odswiez_indeksy()
+        self._oznacz_brudne()
 
     def _rozlacz_wszystkie_relacje(self, encja: str) -> None:
         """Usuwa relacje przychodzące i wychodzące przed skasowaniem bąbla."""
@@ -370,6 +479,7 @@ class LoreStore:
             self.ustaw(doc, POLE_PLIK, plik)
         self._opened_doc = doc
         self._run_line(f'ROZWIJ "{_esc(doc)}" PROMIEŃ 1', strict=False)
+        self._oznacz_brudne()
         return doc
 
     def powiaz_z_dokumentem(
@@ -390,8 +500,14 @@ class LoreStore:
         if not doc:
             raise LoreBackendError("Brak otwartego dokumentu — otwórz i zapisz plik rozdziału w edytorze.")
         self.polacz(enc, doc, relacja)
+        self._dotknij(enc)
 
-    def lore_przy_dokumencie(self, sciezka_pliku: Optional[str] = None) -> List[Dict[str, Any]]:
+    def lore_przy_dokumencie(
+        self,
+        sciezka_pliku: Optional[str] = None,
+        *,
+        ukryj_grobowiec: bool = True,
+    ) -> List[Dict[str, Any]]:
         doc = self._opened_doc
         if sciezka_pliku:
             doc = self._dokument_z_pliku(sciezka_pliku)
@@ -400,17 +516,19 @@ class LoreStore:
         items: List[Dict[str, Any]] = []
         for name in self.sasiedzi(doc, promien=1):
             try:
-                data = self.podglad(name)
+                data = self.podglad(name, as_of=doc)
                 items.append({
                     "nazwa": name,
                     "typ": data.get("Typ", data.get("v", "Inne")),
                     "opis": self._skrot(
                         data.get(POLE_OPIS) or data.get(POLE_TEKST) or data.get(POLE_NOTATKA) or ""
                     ),
+                    "temperatura": data.get("_temperatura"),
+                    "ostatni_rozdzial": data.get("_ostatni_rozdzial"),
                 })
             except LoreBackendError:
                 items.append({"nazwa": name, "typ": "?", "opis": ""})
-        return items
+        return sortuj_po_temperaturze(items, ukryj_grobowiec=ukryj_grobowiec)
 
     def wklej_pomysl_do_dokumentu(
         self,
@@ -427,6 +545,30 @@ class LoreStore:
         return name
 
     # ── Wyszukiwanie ──────────────────────────────────────────────────────
+
+    def zapytaj(self, tekst: str) -> List[Dict[str, Any]]:
+        """Zapytanie semantyczne po grafie (np. postacie przy X nie od 5)."""
+        zap = parsuj_zapytanie(tekst)
+        ctx = self._opened_doc
+        return wykonaj_zapytanie(
+            zap,
+            wszystkie=self.wszystkie_wpisy,
+            sasiedzi=lambda n: self.sasiedzi(n, promien=1),
+            podglad=lambda n: self.podglad(n, as_of=ctx),
+            szukaj_tekst=lambda f: self.szukaj(f),
+            kolejnosc=self._kolejnosc_dokumentow(),
+            sanitize=self._sanitize_entity,
+        )
+
+    def kolejnosc_rozdzialow(self) -> List[Tuple[int, str, str]]:
+        """Uporządkowana oś narracji: (nr rozdziału, bąbel, ścieżka pliku)."""
+        return self._kolejnosc_dokumentow()
+
+    def dokument_biezacy(self, sciezka_pliku: Optional[str] = None) -> Optional[str]:
+        """Bąbel dokumentu dla kontekstu as_of (bez zapisu)."""
+        if sciezka_pliku:
+            return self._dokument_z_pliku(sciezka_pliku)
+        return self._opened_doc
 
     def szukaj(self, fraza: str, *, typ: Optional[str] = None) -> List[str]:
         pattern = _esc(fraza)
@@ -448,6 +590,21 @@ class LoreStore:
         return list(row.get("matches") or [])
 
     # ── Wewnętrzne ────────────────────────────────────────────────────────
+
+    def _kolejnosc_dokumentow(self) -> List[Tuple[int, str, str]]:
+        docs: List[Tuple[str, Dict[str, Any]]] = []
+        for name in self.lista_po_typie(TypLore.DOKUMENT):
+            try:
+                docs.append((name, self.podglad(name, surowe=True)))
+            except LoreBackendError:
+                continue
+        return dokumenty_uporzadkowane(docs)
+
+    def _dotknij(self, encja: str) -> None:
+        self._inject(self._sanitize_entity(encja), POLE_DOTYK, time.time())
+
+    def _oznacz_brudne(self) -> None:
+        self._dirty = True
 
     def _odswiez_indeksy(self) -> None:
         """Przebuduj inv_index/atom_index z aktualnych bąbli — usuwa martwe wpisy."""

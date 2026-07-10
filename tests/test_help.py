@@ -15,6 +15,9 @@ class TestHelpTopics(unittest.TestCase):
             "Czcionki i wygląd",
             "Wydruk i eksport",
             "Panel Lore",
+            "Kontekst czasowy",
+            "Zapytania semantyczne",
+            "Historia zmian",
             "Pliki i Lore Pack",
             "O programie",
         ):

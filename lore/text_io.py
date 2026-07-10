@@ -36,3 +36,21 @@ def write_text(path: str | Path, content: str, encoding: str = "utf-8") -> None:
     if enc not in _ENCODINGS and enc != "utf-8":
         enc = "utf-8"
     Path(path).write_text(content, encoding=enc, errors="replace")
+
+
+def write_text_atomic(path: str | Path, content: str, encoding: str = "utf-8") -> None:
+    """Zapis przez plik tymczasowy + replace — mniejsze ryzyko pustego pliku po crashu."""
+    import os
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + ".lore-tmp")
+    try:
+        write_text(tmp, content, encoding)
+        os.replace(tmp, target)
+    finally:
+        if tmp.is_file():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass

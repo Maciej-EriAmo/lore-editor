@@ -52,6 +52,10 @@ class TestDiscover(unittest.TestCase):
             lore = LoreStore.open_local(project_dir=work)
             try:
                 self.assertTrue((work / LORE_PROJECT_FILE).is_file())
+                hist = work / ".lore-history"
+                self.assertTrue(hist.is_dir())
+                self.assertTrue((hist / "README.txt").is_file())
+                self.assertTrue((hist / "manifest.json").is_file())
             finally:
                 lore.close()
 

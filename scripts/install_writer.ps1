@@ -30,4 +30,6 @@ Write-Host "Gotowe!" -ForegroundColor Green
 Write-Host "  Skrót: $ShortcutPath"
 Write-Host "  Z folderu projektu: cd <folder> && lore-editor"
 Write-Host "  Lub utwórz .lore-project z linią: name=$Project"
+Write-Host "  Przy 1. uruchomieniu: .lore-history/ (backup — nie usuwaj)"
+Write-Host "  Kopia zapasowa: caly folder + .lore-history/"
 Write-Host "  Serwer zespołu: cynober-server  (port 8080)"

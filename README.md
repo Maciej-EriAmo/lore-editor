@@ -4,7 +4,7 @@ Edytor lore dla **pisarzy** — postacie, pomysły, wpływy, koligacje — na si
 
 Narzędzie **pisarskie** (offline-first) — bez Lua, bez silnika gry.
 
-**Wersja:** zobacz `lore-editor --help` lub menu **Pomoc → O programie** (skrót **F1** — przewodnik).
+**Wersja:** zobacz `lore-editor --version` lub menu **Pomoc → O programie** (skrót **F1**).
 
 ## Instalacja
 
@@ -52,25 +52,36 @@ Edytor szuka pliku w cwd i katalogach nadrzędnych.
 lore-editor --project-dir ~/Documents/MojaPowiesc
 ```
 
-Przy pierwszym uruchomieniu tworzy się `.lore-project` i plik `Nazwa.kafd`.
+Przy **pierwszym uruchomieniu** tworzy się:
+
+- `.lore-project` (znacznik projektu)
+- `.lore-history/` (historia zmian — snapshoty lore + rozdziałów)
+- `Nazwa.kafd` (przy pierwszym zapisie lore)
 
 ## Layout folderu
 
 ```
 MojaPowiesc/
   .lore-project          # opcjonalny znacznik projektu
+  .lore-history/         # historia zmian (auto przy 1. uruchomieniu)
+    README.txt           # opis folderu — nie usuwać
+    manifest.json        # rejestr snapshotów
+    snapshots/           # kopie zapasowe
   rozdzial_01.txt        # treść — edytujesz w edytorze
   rozdzial_02.md
   MojaPowiesc.kafd       # lore: postacie, relacje, indeksy (Lore Pack)
 ```
 
-| Plik | Co trzyma |
-|------|-----------|
+| Plik / folder | Co trzyma |
+|---------------|-----------|
 | `.txt` / `.md` | Tekst rozdziału (Twoja proza) |
 | `.kafd` | Graf lore + wskaźniki do plików tekstowych |
 | `.lore-project` | Nazwa świata Cynober |
+| `.lore-history/` | Snapshoty lore + rozdziałów do przywracania |
 
 Stary format (`*.meta.json` + `shards/`) jest **automatycznie migrowany** przy zapisie do jednego `.kafd`.
+
+**Backup:** kopiuj cały folder projektu, w tym `.lore-history/` — to warstwa ratunkowa przy utracie rozdziału lub zepsuciu `.kafd`.
 
 ## Uruchomienie
 
@@ -87,11 +98,14 @@ Menu **Pomoc** (lub **F1**):
 
 | Temat | Zawartość |
 |-------|-----------|
-| Przewodnik pisarza | Szybki start, dwa rodzaje zapisu |
+| Przewodnik pisarza | Szybki start, zapis, historia |
 | Skróty klawiszowe | Ctrl+S, Ctrl+W, Ctrl+F… |
 | Czcionki i wygląd | Presety szkic / druk / czytelność |
 | Wydruk i eksport | Podgląd stron, DOCX, scenariusz |
 | Panel Lore | Postacie, powiązania, sync |
+| Kontekst czasowy | Stany postaci per rozdział |
+| Zapytania semantyczne | Wyszukiwanie po grafie lore |
+| Historia zmian | Snapshoty, przywracanie projektu |
 | Pliki i Lore Pack | Co jest w `.kafd` |
 | O programie | Wersja, linki |
 
@@ -101,7 +115,7 @@ Menu **Pomoc** (lub **F1**):
 
 - **Karty** — wiele plików naraz
 - Zamknij kartę: `×` na karcie, **Ctrl+W**, środkowy przycisk myszy
-- **Autosave** rozdziału co 60 s (tylko pliki już zapisane na dysku)
+- **Autosave** rozdziału co 60 s (tylko pliki już zapisane na dysku) — zapisuje też lore
 
 ### Skróty
 
@@ -109,19 +123,24 @@ Menu **Pomoc** (lub **F1**):
 |-------|--------|
 | Ctrl+N | Nowa karta |
 | Ctrl+O | Otwórz |
-| Ctrl+S | Zapisz rozdział |
+| Ctrl+S | Zapisz rozdział **i** lore (transakcyjnie) |
 | Ctrl+Shift+S | Zapisz jako… |
 | Ctrl+W | Zamknij kartę |
 | Ctrl+Z / Ctrl+Y | Cofnij / Ponów |
-| Ctrl+F | Znajdź |
+| Ctrl+F | Znajdź (w tekście rozdziału) |
 | F1 | Pomoc |
 
-### Dwa rodzaje zapisu
+### Zapis projektu
 
 | Akcja | Co zapisuje |
 |-------|-------------|
-| **Zapisz** (Ctrl+S) | Tekst bieżącego rozdziału (`.txt`) |
-| **Zapisz projekt lore** | Graf lore w `Nazwa.kafd` |
+| **Zapisz** (Ctrl+S) | Tekst rozdziału (`.txt`) **oraz** graf lore (`.kafd`) — jedna operacja |
+| **Autosave** | To samo co Ctrl+S, co 60 s |
+| **Zapisz projekt lore** (menu Lore) | Tylko graf lore — bez ponownego zapisu tekstu |
+
+Ctrl+S zapisuje tekst atomowo (plik tymczasowy → replace), potem od razu flushuje `.kafd`. Przy zamykaniu edytora ostrzeżenie, jeśli lore pozostało niezapisane.
+
+Każdy zapis rozdziału tworzy też wpis w `.lore-history/` (snapshot lore + wszystkich rozdziałów).
 
 ### Wygląd — czcionki
 
@@ -190,9 +209,52 @@ Zakładki: **Rozdział · Szukaj · Zespół**.
 | **Powiąż inny wpis…** | Nazwa istniejącego wpisu (gdy lista pusta) |
 | **Połącz z…** | Relacja między dwoma wpisami (np. postać ↔ wpływ) |
 | **Odłącz od rozdziału** | Usuwa więź z plikiem; wpis zostaje w projekcie |
-| **Usuń wpis** | Trwałe skasowanie (`Delete` na liście) |
-| **Mapa powiązań** | Graf koligacji |
-| **Szukaj** | Fraza w notatkach i opisach |
+| **Usuń wpis** | Trwałe skasowanie (`Delete` na liście) — poprzedzane snapshotem |
+| **Mapa powiązań** | Graf koligacji wokół rozdziału lub wpisu |
+| **Edytuj wpis** | Notatka / opis — w kontekście bieżącego rozdziału |
+
+### Kontekst czasowy
+
+Edycja notatki lub opisu przy **otwartym rozdziale** zapisuje mutację na osi narracji — nie nadpisuje stanu z innych rozdziałów.
+
+Panel pokazuje stan postaci **adekwatny do pliku**, nad którym pracujesz. W podglądzie widać bieżący rozdział i temperaturę wpisu.
+
+### Termodynamika wpisów
+
+Lista w zakładce Rozdział sortuje wpisy według „temperatury”:
+
+| Stan | Znaczenie |
+|------|-----------|
+| **gorący** | Ostatnio edytowany lub powiązany z bieżącym rozdziałem |
+| **ciepły** | Niedawno używany |
+| **zimny** | Dawno nietknięty |
+| **grobowiec** | Ukryty na liście — dawno nieużywany balast |
+
+### Zapytania semantyczne (zakładka Szukaj)
+
+Pole Szukaj obsługuje frazy tekstowe **i** zapytania po grafie lore:
+
+```
+postacie przy Anna nie od 5
+typ:Postać "sojusznik"
+postacie przy Twierdza
+```
+
+- `postacie przy X` — wpisy powiązane z encją X
+- `nie od N` — nie występowały w tekście od N-tego rozdziału (oś = kolejność plików)
+- `typ:Postać` — filtr typu
+- `"fraza"` — szukanie w notatkach i opisach
+
+Wyniki pojawiają się w zakładce Rozdział.
+
+### Historia zmian (menu Lore)
+
+| Akcja | Opis |
+|-------|------|
+| **Utwórz punkt przywracania…** | Ręczny snapshot z opisem |
+| **Historia zmian…** | Lista snapshotów, przywracanie |
+
+Snapshot obejmuje `.kafd` i wszystkie rozdziały. Przed przywróceniem bieżący stan jest zapisywany automatycznie.
 
 ### Zespół (sync)
 
