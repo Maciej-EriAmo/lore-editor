@@ -14,6 +14,15 @@ from lore.panel import LorePanel
 from lore.store import LoreStore
 from lore.text_io import read_text_smart, write_text
 from lore.theme import apply_theme, style_text
+from lore.typography import (
+    apply_typography,
+    load_typography_settings,
+    list_presets_by_category,
+    refresh_body_tag,
+    save_typography_settings,
+    settings_summary,
+    TypographySettings,
+)
 
 _AUTOSAVE_MS = 60_000
 
@@ -45,8 +54,13 @@ class EditorWindow:
         self._proj_root = lore.katalog_projektu()
         self._tabs: dict[str, _TabState] = {}
         self._find_dialog: Optional[tk.Toplevel] = None
+        self._typography = load_typography_settings()
 
         self.root = tk.Tk()
+        preset, size, spacing = self._typography.resolved()
+        self._font_family_var = tk.StringVar(master=self.root, value=self._typography.preset_id)
+        self._font_size_var = tk.IntVar(master=self.root, value=size)
+        self._line_spacing_var = tk.DoubleVar(master=self.root, value=spacing)
         self.root.title(f"Lore Editor — {self._proj}")
         self.root.geometry("1150x720")
         self.root.minsize(900, 560)
@@ -198,6 +212,38 @@ class EditorWindow:
         lore_m.add_command(label="Odśwież panel", command=self._panel.odswiez)
         lore_m.add_command(label="Zapisz projekt lore", command=self._save_lore)
 
+        view_m = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Wygląd", menu=view_m)
+        for _cat_id, cat_label, items in list_presets_by_category():
+            sub = tk.Menu(view_m, tearoff=0)
+            view_m.add_cascade(label=cat_label, menu=sub)
+            for preset in items:
+                sub.add_radiobutton(
+                    label=preset.menu_label(),
+                    variable=self._font_family_var,
+                    value=preset.id,
+                    command=self._on_typography_preset,
+                )
+        view_m.add_separator()
+        size_m = tk.Menu(view_m, tearoff=0)
+        view_m.add_cascade(label="Rozmiar czcionki", menu=size_m)
+        for pt in (11, 12):
+            size_m.add_radiobutton(
+                label=f"{pt} pt",
+                variable=self._font_size_var,
+                value=pt,
+                command=self._on_typography_size,
+            )
+        spacing_m = tk.Menu(view_m, tearoff=0)
+        view_m.add_cascade(label="Interlinia", menu=spacing_m)
+        for sp, label in ((1.0, "1,0 — druk / gotowy tekst"), (1.5, "1,5 — szkic roboczy")):
+            spacing_m.add_radiobutton(
+                label=label,
+                variable=self._line_spacing_var,
+                value=sp,
+                command=self._on_typography_spacing,
+            )
+
     def _bind_shortcuts(self) -> None:
         self.root.bind_all("<Control-n>", lambda e: self._new_tab())
         self.root.bind_all("<Control-o>", lambda e: self._open_dialog())
@@ -209,7 +255,8 @@ class EditorWindow:
     def _create_tab(self, content: str = "", path: str = "", encoding: str = "utf-8") -> str:
         frame = ttk.Frame(self._notebook)
         text = scrolledtext.ScrolledText(frame, wrap="word", undo=True)
-        style_text(text, height=24, mono=True)
+        style_text(text, height=24, mono=False)
+        self._apply_typography_to_widget(text)
         text.pack(fill="both", expand=True)
         if content:
             text.insert("1.0", content)
@@ -227,6 +274,7 @@ class EditorWindow:
                 state.dirty = True
                 self._update_tab_title(tab_id)
                 self._update_window_title()
+            refresh_body_tag(text)
             self._update_status()
 
         text.bind("<<Modified>>", _on_modify)
@@ -334,6 +382,52 @@ class EditorWindow:
                 tab.text.edit_redo()
             except tk.TclError:
                 pass
+
+    def _sync_typography_from_vars(self) -> TypographySettings:
+        self._typography = TypographySettings(
+            preset_id=self._font_family_var.get(),
+            size=int(self._font_size_var.get()),
+            line_spacing=float(self._line_spacing_var.get()),
+        )
+        return self._typography
+
+    def _apply_typography_to_widget(self, text: scrolledtext.ScrolledText) -> str:
+        return apply_typography(text, self._typography)
+
+    def _apply_typography_all(self) -> str:
+        family = ""
+        for state in self._tabs.values():
+            family = self._apply_typography_to_widget(state.text)
+        return family
+
+    def _persist_typography(self, family: str = "") -> None:
+        save_typography_settings(self._typography)
+        if not family:
+            tab = self._current_tab()
+            if tab:
+                family = tab.text.cget("font").split()[0] if tab.text.cget("font") else ""
+        self._status_var.set("Wygląd: " + settings_summary(self._typography, family=family))
+
+    def _on_typography_preset(self) -> None:
+        from lore.typography import get_preset
+
+        preset = get_preset(self._font_family_var.get())
+        if preset:
+            self._font_size_var.set(preset.size)
+            self._line_spacing_var.set(preset.line_spacing)
+        self._sync_typography_from_vars()
+        family = self._apply_typography_all()
+        self._persist_typography(family)
+
+    def _on_typography_size(self) -> None:
+        self._sync_typography_from_vars()
+        family = self._apply_typography_all()
+        self._persist_typography(family)
+
+    def _on_typography_spacing(self) -> None:
+        self._sync_typography_from_vars()
+        family = self._apply_typography_all()
+        self._persist_typography(family)
 
     def _toggle_wrap(self) -> None:
         tab = self._current_tab()

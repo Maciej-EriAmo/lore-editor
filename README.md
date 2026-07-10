@@ -73,6 +73,7 @@ lore-editor --rpc --host 192.168.1.10    # lore na serwerze
 - **Skróty** — `Ctrl+N` `Ctrl+O` `Ctrl+S` `Ctrl+Shift+S` `Ctrl+W` `Ctrl+F`
 - **Status** — liczba słów i znaków, kodowanie pliku
 - **Autosave** — co 60 s (tylko pliki już zapisane na dysku)
+- **Wygląd** — presety czcionek (szkic, druk, czytelność), rozmiar 11–12 pt, interlinia 1,0 / 1,5
 
 ### Panel lore (zakładki Rozdział · Szukaj · Zespół)
 
