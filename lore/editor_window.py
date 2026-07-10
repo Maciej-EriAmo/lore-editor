@@ -15,6 +15,7 @@ from lore.store import LoreStore
 from lore.text_io import read_text_smart, write_text
 from lore.theme import apply_theme, style_text
 from lore.export_docx import DocxExportError, export_available, export_manuscript_docx
+from lore.help_view import open_help
 from lore.manuscript import paginate, profile_for_preset
 from lore.print_preview import open_print_preview
 from lore.typography import (
@@ -286,6 +287,39 @@ class EditorWindow:
             command=lambda: self._export_docx("print_ready"),
         )
 
+        help_m = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Pomoc", menu=help_m)
+        help_m.add_command(
+            label="Przewodnik pisarza",
+            accelerator="F1",
+            command=lambda: open_help(self.root, "Przewodnik pisarza"),
+        )
+        help_m.add_command(
+            label="Skróty klawiszowe",
+            command=lambda: open_help(self.root, "Skróty klawiszowe"),
+        )
+        help_m.add_command(
+            label="Czcionki i wygląd",
+            command=lambda: open_help(self.root, "Czcionki i wygląd"),
+        )
+        help_m.add_command(
+            label="Wydruk i eksport",
+            command=lambda: open_help(self.root, "Wydruk i eksport"),
+        )
+        help_m.add_command(
+            label="Panel Lore",
+            command=lambda: open_help(self.root, "Panel Lore"),
+        )
+        help_m.add_command(
+            label="Pliki i Lore Pack",
+            command=lambda: open_help(self.root, "Pliki i Lore Pack"),
+        )
+        help_m.add_separator()
+        help_m.add_command(
+            label="O programie",
+            command=lambda: open_help(self.root, "O programie"),
+        )
+
     def _bind_shortcuts(self) -> None:
         self.root.bind_all("<Control-n>", lambda e: self._new_tab())
         self.root.bind_all("<Control-o>", lambda e: self._open_dialog())
@@ -293,6 +327,7 @@ class EditorWindow:
         self.root.bind_all("<Control-Shift-S>", lambda e: self._save_as())
         self.root.bind_all("<Control-w>", lambda e: self._close_current_tab())
         self.root.bind_all("<Control-f>", lambda e: self._show_find())
+        self.root.bind_all("<F1>", lambda e: open_help(self.root, "Przewodnik pisarza"))
 
     def _create_tab(self, content: str = "", path: str = "", encoding: str = "utf-8") -> str:
         frame = ttk.Frame(self._notebook)

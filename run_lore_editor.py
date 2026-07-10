@@ -55,10 +55,17 @@ def _run_standalone(
 
 
 def main() -> None:
+    from lore import __version__
+
     parser = argparse.ArgumentParser(
-        description="Lore Editor — pisarz + Cynober lore",
-        epilog="W katalogu projektu utwórz .lore-project z linią name=NazwaProjektu",
+        prog="lore-editor",
+        description="Lore Editor — edytor rozdziałów z panelem lore (postacie, pomysły, wydruk DOCX)",
+        epilog=(
+            "Projekt: utwórz .lore-project z linią name=NazwaProjektu lub uruchom z folderu powieści. "
+            "Pomoc w aplikacji: menu Pomoc lub F1."
+        ),
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--project", "-p",
         default=None,
