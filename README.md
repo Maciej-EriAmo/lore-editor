@@ -74,6 +74,8 @@ lore-editor --rpc --host 192.168.1.10    # lore na serwerze
 - **Status** — liczba słów i znaków, kodowanie pliku
 - **Autosave** — co 60 s (tylko pliki już zapisane na dysku)
 - **Wygląd** — presety czcionek (szkic, druk, czytelność), rozmiar 11–12 pt, interlinia 1,0 / 1,5
+- **Wydruk** — podgląd stron (A4/Letter), liczba stron i ~minut (scenariusz), eksport DOCX pod wydawnictwo
+- **Czcionki opcjonalne** — `.\scripts\install_fonts.ps1` (Lexend, OpenDyslexic)
 
 ### Panel lore (zakładki Rozdział · Szukaj · Zespół)
 

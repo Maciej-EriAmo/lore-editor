@@ -14,6 +14,9 @@ from lore.panel import LorePanel
 from lore.store import LoreStore
 from lore.text_io import read_text_smart, write_text
 from lore.theme import apply_theme, style_text
+from lore.export_docx import DocxExportError, export_available, export_manuscript_docx
+from lore.manuscript import paginate, profile_for_preset
+from lore.print_preview import open_print_preview
 from lore.typography import (
     apply_typography,
     load_typography_settings,
@@ -144,9 +147,16 @@ class EditorWindow:
             except ValueError:
                 path_lbl = Path(tab.path).name
             dirty = " · niezapisane" if tab.dirty else ""
-            self._status_var.set(f"{path_lbl} · {words} słów · {chars} znaków · {enc}{dirty}")
+            ms = paginate(content, profile_for_preset(self._typography.preset_id))
+            self._status_var.set(
+                f"{path_lbl} · {words} słów · {ms.summary()} · {enc}{dirty}"
+            )
         else:
-            self._status_var.set(f"Bez tytułu · {words} słów · {chars} znaków{(' · niezapisane' if tab.dirty else '')}")
+            ms = paginate(content, profile_for_preset(self._typography.preset_id))
+            self._status_var.set(
+                f"Bez tytułu · {words} słów · {ms.summary()}"
+                f"{(' · niezapisane' if tab.dirty else '')}"
+            )
 
     def _build_ui(self) -> None:
         top = ttk.Frame(self.root, padding=(8, 6))
@@ -243,6 +253,38 @@ class EditorWindow:
                 value=sp,
                 command=self._on_typography_spacing,
             )
+
+        print_m = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Wydruk", menu=print_m)
+        prev_m = tk.Menu(print_m, tearoff=0)
+        print_m.add_cascade(label="Podgląd stron", menu=prev_m)
+        prev_m.add_command(
+            label="Scenariusz (Courier, 1 str. ≈ 1 min)",
+            command=lambda: self._show_print_preview("screenplay"),
+        )
+        prev_m.add_command(
+            label="Rękopis do wysyłki (TNR, interlinia 2,0)",
+            command=lambda: self._show_print_preview("submission"),
+        )
+        prev_m.add_command(
+            label="Gotowy do druku (TNR, interlinia 1,0)",
+            command=lambda: self._show_print_preview("print_ready"),
+        )
+        print_m.add_separator()
+        exp_m = tk.Menu(print_m, tearoff=0)
+        print_m.add_cascade(label="Eksportuj DOCX…", menu=exp_m)
+        exp_m.add_command(
+            label="Rękopis do wydawnictwa (TNR 12, margines 2,5 cm)",
+            command=lambda: self._export_docx("submission"),
+        )
+        exp_m.add_command(
+            label="Scenariusz (Courier 12)",
+            command=lambda: self._export_docx("screenplay"),
+        )
+        exp_m.add_command(
+            label="Gotowy do druku (TNR 12, interlinia 1,0)",
+            command=lambda: self._export_docx("print_ready"),
+        )
 
     def _bind_shortcuts(self) -> None:
         self.root.bind_all("<Control-n>", lambda e: self._new_tab())
@@ -428,6 +470,51 @@ class EditorWindow:
         self._sync_typography_from_vars()
         family = self._apply_typography_all()
         self._persist_typography(family)
+
+    def _current_text_content(self) -> str:
+        tab = self._current_tab()
+        return tab.text.get("1.0", "end-1c") if tab else ""
+
+    def _show_print_preview(self, profile_id: str) -> None:
+        tab = self._current_tab()
+        if tab is None:
+            messagebox.showinfo("Wydruk", "Otwórz kartę z tekstem.", parent=self.root)
+            return
+        title = "Podgląd — scenariusz" if profile_id == "screenplay" else "Podgląd druku"
+        open_print_preview(self.root, self._current_text_content(), profile_id=profile_id, title=title)
+
+    def _export_docx(self, profile_id: str) -> None:
+        tab = self._current_tab()
+        if tab is None:
+            messagebox.showinfo("Eksport", "Otwórz kartę z tekstem.", parent=self.root)
+            return
+        if not export_available():
+            messagebox.showerror(
+                "Eksport DOCX",
+                "Zainstaluj pakiet: pip install python-docx",
+                parent=self.root,
+            )
+            return
+        default = Path(tab.path).stem if tab.path else "rozdzial"
+        path = filedialog.asksaveasfilename(
+            parent=self.root,
+            initialdir=str(self._proj_root),
+            initialfile=f"{default}_rekopis.docx",
+            defaultextension=".docx",
+            filetypes=[("Word", "*.docx")],
+        )
+        if not path:
+            return
+        try:
+            export_manuscript_docx(
+                self._current_text_content(),
+                path,
+                profile_id=profile_id,
+                title=Path(tab.path).stem if tab.path else "",
+            )
+            messagebox.showinfo("Eksport DOCX", f"Zapisano:\n{path}", parent=self.root)
+        except (DocxExportError, OSError) as e:
+            messagebox.showerror("Eksport DOCX", str(e), parent=self.root)
 
     def _toggle_wrap(self) -> None:
         tab = self._current_tab()

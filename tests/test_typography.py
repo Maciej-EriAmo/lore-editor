@@ -21,12 +21,21 @@ from lore.typography import (
 
 class TestTypography(unittest.TestCase):
     def test_all_presets_have_defaults(self):
+        self.assertEqual(len(PRESETS), 8)
         for p in PRESETS:
             self.assertIn(p.size, (11, 12))
             self.assertIn(p.line_spacing, (1.0, 1.5))
 
+    def test_legacy_preset_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "typography.json"
+            path.write_text('{"preset_id": "drafting_courier"}', encoding="utf-8")
+            with mock.patch("lore.typography.SETTINGS_FILE", path):
+                loaded = load_typography_settings()
+            self.assertEqual(loaded.preset_id, "drafting_courier_new")
+
     def test_resolve_font_fallback(self):
-        preset = get_preset("drafting_courier")
+        preset = get_preset("drafting_courier_new")
         self.assertEqual(
             resolve_font_family(preset, families=["Arial", "Courier New"]),
             "Courier New",
@@ -57,7 +66,7 @@ class TestTypography(unittest.TestCase):
             self.assertEqual(loaded.line_spacing, 1.0)
 
     def test_settings_summary(self):
-        s = TypographySettings(preset_id="drafting_sans")
+        s = TypographySettings(preset_id="drafting_calibri")
         text = settings_summary(s, family="Calibri")
         self.assertIn("Calibri", text)
         self.assertIn("11", text)

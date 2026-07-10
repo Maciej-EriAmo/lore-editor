@@ -37,24 +37,44 @@ class TypographyPreset:
 
 PRESETS: Tuple[TypographyPreset, ...] = (
     TypographyPreset(
-        "drafting_courier",
-        "Courier — maszynopis",
+        "drafting_courier_new",
+        "Courier New — maszynopis",
+        "drafting",
+        "Courier New",
+        ("Consolas",),
+        12,
+        1.5,
+        "Klasyczny maszynopis; 1 strona ≈ 1 min (scenariusz).",
+    ),
+    TypographyPreset(
+        "drafting_courier_prime",
+        "Courier Prime — maszynopis",
         "drafting",
         "Courier Prime",
         ("Courier New", "Consolas"),
         12,
         1.5,
-        "Monotypowa; 1 strona ≈ 1 minuta tekstu (scenariusz).",
+        "Nowoczesny maszynopis scenariuszowy.",
     ),
     TypographyPreset(
-        "drafting_sans",
-        "Calibri / Arial — szkic",
+        "drafting_calibri",
+        "Calibri — szkic",
         "drafting",
         "Calibri",
-        ("Arial", "Segoe UI"),
+        ("Segoe UI", "Arial"),
         11,
         1.5,
-        "Bezszeryfowa, lekka przy wielogodzinnym pisaniu.",
+        "Bezszeryfowa, lekka przy długich sesjach.",
+    ),
+    TypographyPreset(
+        "drafting_arial",
+        "Arial — szkic",
+        "drafting",
+        "Arial",
+        ("Calibri", "Segoe UI"),
+        11,
+        1.5,
+        "Prosta bezszeryfowa — standard Windows.",
     ),
     TypographyPreset(
         "print_garamond",
@@ -98,6 +118,11 @@ PRESETS: Tuple[TypographyPreset, ...] = (
     ),
 )
 
+_LEGACY_PRESET_MAP = {
+    "drafting_courier": "drafting_courier_new",
+    "drafting_sans": "drafting_calibri",
+}
+
 _PRESET_BY_ID = {p.id: p for p in PRESETS}
 
 
@@ -113,7 +138,7 @@ CATEGORY_LABELS = {
 
 @dataclass
 class TypographySettings:
-    preset_id: str = "drafting_courier"
+    preset_id: str = "drafting_courier_new"
     size: Optional[int] = None
     line_spacing: Optional[float] = None
 
@@ -163,9 +188,10 @@ def load_typography_settings() -> TypographySettings:
         raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             return TypographySettings()
-        preset_id = str(raw.get("preset_id", "drafting_courier"))
+        preset_id = str(raw.get("preset_id", "drafting_courier_new"))
+        preset_id = _LEGACY_PRESET_MAP.get(preset_id, preset_id)
         if preset_id not in _PRESET_BY_ID:
-            preset_id = "drafting_courier"
+            preset_id = "drafting_courier_new"
         size = raw.get("size")
         line_spacing = raw.get("line_spacing")
         return TypographySettings(
