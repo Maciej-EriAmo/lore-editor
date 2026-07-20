@@ -4,6 +4,8 @@ Edytor lore dla **pisarzy** — postacie, pomysły, wpływy, koligacje — na si
 
 Narzędzie **pisarskie** (offline-first) — bez Lua, bez silnika gry.
 
+Graf lore opiera się na **dedykowanej bazie Cynober DB** (format atomów **Karmazyn**, plik `.kafd`). To nie jest zwykła sieć ani SQL — szczegóły w sekcji [Komunikacja i sieć](#komunikacja-i-sieć).
+
 **Wersja:** zobacz `lore-editor --version` lub menu **Pomoc → O programie** (skrót **F1**).
 
 ## Instalacja
@@ -13,7 +15,13 @@ pip install "cynober-db>=8.0.1"
 pip install -e .
 ```
 
-Zależności obejmują m.in. `python-docx` (eksport rękopisu do Worda).
+Zależności obejmują m.in.:
+
+| Pakiet | Rola |
+|--------|------|
+| `cynober-db` | Silnik grafu lore (Karmazyn / KarminQL) |
+| `python-docx` | Eksport rękopisu do Worda |
+| `spylls` | Silnik hunspell (korekta pisowni + słownik SJP.PL) |
 
 Windows — skrót na pulpicie i pakiet:
 
@@ -70,6 +78,7 @@ MojaPowiesc/
   rozdzial_01.txt        # treść — edytujesz w edytorze
   rozdzial_02.md
   MojaPowiesc.kafd       # lore: postacie, relacje, indeksy (Lore Pack)
+  .lore-spelling.json    # opcjonalnie: słowa dodane przy korekcie pisowni
 ```
 
 | Plik / folder | Co trzyma |
@@ -78,19 +87,90 @@ MojaPowiesc/
 | `.kafd` | Graf lore + wskaźniki do plików tekstowych |
 | `.lore-project` | Nazwa świata Cynober |
 | `.lore-history/` | Snapshoty lore + rozdziałów do przywracania |
+| `.lore-spelling.json` | Słownik pisowni projektu (F7 → „Dodaj do słownika”) |
+
+### Słownik nazw i pisownia
+
+- **Edycja → Słownik nazw…** (`Ctrl+Shift+D`) — podgląd postaci/miejsc z lore, wstawianie nazwy do tekstu.
+- **Edycja → Sprawdź pisownię…** (`F7`) — korekta offline:
+  - **SJP.PL** (słownik hunspell, m.in. Apache 2.0 — [sjp.pl/slownik/ort](https://sjp.pl/slownik/ort/)), silnik [spylls](https://pypi.org/project/spylls/)
+  - nazwy z lore + `.lore-spelling.json` w projekcie
+
+Atrybucja SJP: `lore/data/sjp/NOTICE.txt`. Szczegóły: **Pomoc → Słownik i pisownia**.
 
 Stary format (`*.meta.json` + `shards/`) jest **automatycznie migrowany** przy zapisie do jednego `.kafd`.
 
-**Backup:** kopiuj cały folder projektu, w tym `.lore-history/` — to warstwa ratunkowa przy utracie rozdziału lub zepsuciu `.kafd`.
+**Backup:** kopiuj cały folder projektu, w tym `.lore-history/` i opcjonalnie `.lore-spelling.json` — warstwa ratunkowa przy utracie rozdziału lub zepsuciu `.kafd`.
 
 ## Uruchomienie
 
 ```bash
-lore-editor                              # z katalogu projektu
+lore-editor                              # z katalogu projektu (domyślnie: bez sieci)
 lore-editor --file rozdzial_01.txt       # jeden plik
 lore-editor rozdzial_01.txt rozdzial_02.md   # kilka kart
-lore-editor --rpc --host 192.168.1.10    # lore na serwerze
+lore-editor --rpc --host 192.168.1.10    # lore przez cynober-server (patrz niżej)
 ```
+
+## Komunikacja i sieć
+
+**Pułapka:** `--host` i port `8080` sugerują „zwykłe TCP”, ale Lore Editor **nie** gada po HTTP, REST ani SQL. W trybie sieciowym używasz **protokołu Karmazyn** (handshake HSS, link HSL, ramki binarne) i **KarminQL-RPC** w JSON — na serwerze **cynober-server** z pakietu **cynober-db**.
+
+### Tryb domyślny — bez sieci (zalecany dla pisarza)
+
+| Warstwa | Technologia |
+|---------|-------------|
+| Edytor → lore | Wywołania w jednym procesie Pythona |
+| Silnik grafu | **Cynober DB** (KarminQL) |
+| Zapis lore | Plik `.kafd` — atomowy magazyn **Karmazyn** |
+| Rozdziały | Zwykłe `.txt` / `.md` na dysku |
+
+Żadnego socketu. Firewall i router nie mają znaczenia.
+
+### Praca w sieci — protokół Karmazyn + Cynober DB
+
+Włączasz jawnie: `lore-editor --rpc --host ADRES [--port 8080]`.
+
+| Warstwa | Co to jest |
+|---------|------------|
+| Transport | TCP/IP (`socket`, domyślnie port **8080**) |
+| Handshake | **Karmazyn HSS** (`karmazyn_handshake`) — negocjacja, szyfrowanie |
+| Sesja | **Karmazyn HSL** (`karmazyn_hsl`) — capability RPC |
+| Ramki | `_send_frame` / `_recv_frame` — **nie** surowy tekst HTTP |
+| Payload | JSON z polem `"query"` = linia **KarminQL** |
+| Wersja protokołu | `Cynober-Secure-1.2` (klient `cynober_client`) |
+| Serwer | **cynober-server** — ten sam stos co w cynober-db |
+
+Rozdziały nadal leżą **lokalnie** u pisarza; po sieci chodzi tylko **graf lore** (operacje na świecie Cynober).
+
+```bash
+# Na maszynie z lore (np. zespół):
+cynober-server          # nasłuch, domyślnie :8080
+
+# Na laptopie pisarza:
+lore-editor --rpc --host 192.168.1.10 --port 8080
+```
+
+Profil połączenia (host, port, HSS) można też trzymać w `~/.karmazyn_client.json` — wtedy `cynober_client.connect(profile="nazwa")`.
+
+### Sync zespołu (zakładka Zespół)
+
+Osobna ścieżka: **cynober_replicate** (push / pull / sync) — znowu TCP do **cynober-server**, nie zwykły upload plików. Wymaga trybu lokalnego (`.kafd` zapisany na dysku przed wysyłką).
+
+### To nie jest (typowe pomyłki)
+
+Lore Editor **nie** implementuje ani **nie** oczekuje:
+
+| Myślisz, że… | W rzeczywistości |
+|--------------|------------------|
+| To HTTP/REST na porcie 8080 | **Nie.** Brak nagłówków HTTP, ścieżek `/api/…` i JSON-API. Port 8080 to domyślny **cynober-server**, nie serwer WWW. |
+| Lore siedzi w SQL | **Nie.** Graf to **Cynober DB** — atomy **Karmazyn** w pliku `.kafd`, nie tabele PostgreSQL/SQLite/MySQL. |
+| Wystarczy TCP z własnym JSON-em | **Nie.** Najpierw **Karmazyn HSS** (handshake), **HSL** (sesja), **ramki binarne**; wewnątrz dopiero JSON z `"query"` (KarminQL-RPC). |
+| Sync = FTP/SFTP/rsync pliku `.kafd` | **Nie** jako protokół aplikacji. Zespół i `--rpc` wymagają **cynober-server** i **Cynober replicate** — nie zwykłego wrzucenia pliku. |
+| Podłączę własny backend | **Nie** bez **cynober-server**. Klient `--rpc` mówi wyłącznie protokołem **Cynober-Secure-1.2**. |
+
+**Dozwolone obok tego:** ręczna kopia folderu projektu (`.kafd` + rozdziały + `.lore-history/`) na backup lub chmurę — to archiwum plików, **nie** zastępuje komunikacji Karmazyn między edytorami.
+
+Więcej: menu **Pomoc → Sieć: Karmazyn i Cynober DB** (F1).
 
 ## Pomoc w aplikacji
 
@@ -103,11 +183,13 @@ Menu **Pomoc** (lub **F1**):
 | Czcionki i wygląd | Presety szkic / druk / czytelność |
 | Wydruk i eksport | Podgląd stron, DOCX, scenariusz |
 | Panel Lore | Postacie, powiązania, sync |
+| Słownik i pisownia | Nazwy z lore, F7, SJP.PL |
 | Kontekst czasowy | Stany postaci per rozdział |
 | Zapytania semantyczne | Wyszukiwanie po grafie lore |
 | Historia zmian | Snapshoty, przywracanie projektu |
 | Pliki i Lore Pack | Co jest w `.kafd` |
-| O programie | Wersja, linki |
+| Sieć: Karmazyn i Cynober DB | Nie zwykłe TCP — protokół i `--rpc` |
+| O programie | Wersja, linki, licencje składowych |
 
 ## Edytor tekstu
 
@@ -128,6 +210,8 @@ Menu **Pomoc** (lub **F1**):
 | Ctrl+W | Zamknij kartę |
 | Ctrl+Z / Ctrl+Y | Cofnij / Ponów |
 | Ctrl+F | Znajdź (w tekście rozdziału) |
+| Ctrl+Shift+D | Słownik nazw (lore) |
+| F7 | Sprawdź pisownię (SJP + lore) |
 | F1 | Pomoc |
 
 ### Zapis projektu
@@ -258,7 +342,7 @@ Snapshot obejmuje `.kafd` i wszystkie rozdziały. Przed przywróceniem bieżący
 
 ### Zespół (sync)
 
-Wymaga trybu lokalnego i `cynober-server`. Przyciski: Wyślij / Pobierz / Synchronizuj.
+Wymaga trybu lokalnego i **cynober-server** (protokół Karmazyn / Cynober replicate — nie zwykły transfer plików). Przyciski: Wyślij / Pobierz / Synchronizuj. Zobacz też **Pomoc → Sieć: Karmazyn i Cynober DB**.
 
 ## Pakiet exe (Nuitka)
 
@@ -278,4 +362,15 @@ python -m unittest discover -s tests -v
 
 ## Licencja
 
-MIT
+Kod Lore Editor: **MIT**.
+
+### Składowe zewnętrzne (pisownia)
+
+| Składowa | Źródło | Licencja (wybór) |
+|----------|--------|------------------|
+| Słownik ortograficzny PL | [SJP.PL](https://sjp.pl/slownik/ort/) (`lore/data/sjp/`) | m.in. **Apache 2.0**, GPL 2, LGPL 2.1, MPL 1.1, CC BY 4.0 |
+| Silnik hunspell (Python) | [spylls](https://pypi.org/project/spylls/) | zgodnie z pakietem PyPI |
+
+W tym projekcie słownik SJP.PL jest używany na podstawie **Apache 2.0** z atrybucją — zob. `lore/data/sjp/NOTICE.txt` i `README_pl_PL.txt`.
+
+Szerszy opis funkcji: [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md).

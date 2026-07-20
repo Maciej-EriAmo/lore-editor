@@ -1,0 +1,20 @@
+Słownik ortograficzny SJP.PL (pl_PL.aff, pl_PL.dic)
+====================================================
+
+Źródło: https://sjp.pl/slownik/ort/
+         https://sjp.pl/sl/en/
+
+Wersja wbudowana: 2026-06-01
+
+Licencja (do wyboru — w tym projekcie przyjmujemy Apache License 2.0):
+  - GPL 2
+  - LGPL 2.1
+  - MPL 1.1
+  - Apache License 2.0
+  - Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Autor / kontakt: sjpslownik@gmail.com
+README oryginalny: README_pl_PL.txt
+
+Lore Editor (MIT) korzysta ze słownika na podstawie Apache 2.0
+z zachowaniem atrybucji SJP.PL.

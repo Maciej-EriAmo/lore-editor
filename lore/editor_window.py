@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from typing import Optional
 
+from lore.dictionary_view import open_name_dictionary, open_spellcheck
 from lore.document_hooks import on_file_opened, on_file_saved
 from lore.panel import LorePanel
 from lore.store import LoreStore
@@ -217,6 +218,17 @@ class EditorWindow:
         edit_m.add_command(label="Ponów", accelerator="Ctrl+Y", command=self._redo)
         edit_m.add_separator()
         edit_m.add_command(label="Znajdź…", accelerator="Ctrl+F", command=self._show_find)
+        edit_m.add_command(
+            label="Słownik nazw…",
+            accelerator="Ctrl+Shift+D",
+            command=self._show_name_dictionary,
+        )
+        edit_m.add_command(
+            label="Sprawdź pisownię…",
+            accelerator="F7",
+            command=self._show_spellcheck,
+        )
+        edit_m.add_separator()
         edit_m.add_command(label="Zawijaj wiersze", command=self._toggle_wrap)
 
         lore_m = tk.Menu(menubar, tearoff=0)
@@ -315,6 +327,10 @@ class EditorWindow:
             command=lambda: open_help(self.root, "Panel Lore"),
         )
         help_m.add_command(
+            label="Słownik i pisownia",
+            command=lambda: open_help(self.root, "Słownik i pisownia"),
+        )
+        help_m.add_command(
             label="Kontekst czasowy",
             command=lambda: open_help(self.root, "Kontekst czasowy"),
         )
@@ -330,6 +346,10 @@ class EditorWindow:
             label="Pliki i Lore Pack",
             command=lambda: open_help(self.root, "Pliki i Lore Pack"),
         )
+        help_m.add_command(
+            label="Sieć: Karmazyn i Cynober DB",
+            command=lambda: open_help(self.root, "Sieć: Karmazyn i Cynober DB"),
+        )
         help_m.add_separator()
         help_m.add_command(
             label="O programie",
@@ -343,6 +363,8 @@ class EditorWindow:
         self.root.bind_all("<Control-Shift-S>", lambda e: self._save_as())
         self.root.bind_all("<Control-w>", lambda e: self._close_current_tab())
         self.root.bind_all("<Control-f>", lambda e: self._show_find())
+        self.root.bind_all("<Control-Shift-D>", lambda e: self._show_name_dictionary())
+        self.root.bind_all("<F7>", lambda e: self._show_spellcheck())
         self.root.bind_all("<F1>", lambda e: open_help(self.root, "Przewodnik pisarza"))
 
     def _create_tab(self, content: str = "", path: str = "", encoding: str = "utf-8") -> str:
@@ -632,6 +654,23 @@ class EditorWindow:
         ttk.Button(dlg, text="Dalej", command=_find_next).grid(row=1, column=1, sticky="e", padx=8, pady=(0, 8))
         entry.bind("<Return>", lambda e: _find_next())
         dlg.protocol("WM_DELETE_WINDOW", dlg.destroy)
+
+    def _show_name_dictionary(self) -> None:
+        tab = self._current_tab()
+        text = tab.text if tab else None
+        open_name_dictionary(self.root, self._lore, text)
+
+    def _show_spellcheck(self) -> None:
+        tab = self._current_tab()
+        if tab is None:
+            messagebox.showinfo("Pisownia", "Otwórz kartę z tekstem.", parent=self.root)
+            return
+        open_spellcheck(
+            self.root,
+            tab.text,
+            self._lore,
+            project_root=self._proj_root,
+        )
 
     def _confirm_save_tab(self, tab: _TabState) -> bool:
         answer = messagebox.askyesnocancel(

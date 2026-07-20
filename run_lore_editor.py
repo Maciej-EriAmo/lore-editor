@@ -83,7 +83,11 @@ def main() -> None:
         help="Folder projektu; domyślnie cwd lub katalog z .lore-project",
     )
     parser.add_argument("--file", "-f", default=None, help="Plik do otwarcia")
-    parser.add_argument("--rpc", action="store_true", help="Lore na serwerze (cynober-server)")
+    parser.add_argument(
+        "--rpc",
+        action="store_true",
+        help="Lore przez cynober-server (TCP + protokół Karmazyn/HSL + KarminQL-RPC — nie zwykłe HTTP)",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Host cynober-server")
     parser.add_argument("--port", type=int, default=8080, help="Port cynober-server")
     parser.add_argument("--profile", default=None, help="Profil cynober-client")

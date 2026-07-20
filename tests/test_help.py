@@ -15,10 +15,12 @@ class TestHelpTopics(unittest.TestCase):
             "Czcionki i wygląd",
             "Wydruk i eksport",
             "Panel Lore",
+            "Słownik i pisownia",
             "Kontekst czasowy",
             "Zapytania semantyczne",
             "Historia zmian",
             "Pliki i Lore Pack",
+            "Sieć: Karmazyn i Cynober DB",
             "O programie",
         ):
             self.assertIn(name, titles)

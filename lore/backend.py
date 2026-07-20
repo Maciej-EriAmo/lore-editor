@@ -1,4 +1,4 @@
-"""Backend Cynober ukryty przed pisarzem — lokalny (WorldRegistry) lub RPC."""
+"""Backend Cynober ukryty przed pisarzem — lokalny (in-process) lub RPC (Karmazyn/HSL)."""
 
 from __future__ import annotations
 
@@ -148,7 +148,10 @@ class LocalLoreBackend:
 
 
 class RpcLoreBackend:
-    """Lore na cynober-server — rozdziały nadal lokalne na dysku pisarza."""
+    """
+    Lore na cynober-server (TCP + protokół Karmazyn, nie zwykły HTTP/SQL).
+    Rozdziały nadal lokalne na dysku pisarza.
+    """
 
     def __init__(self, client: Any):
         from cynober_rpc import parse_response_payload

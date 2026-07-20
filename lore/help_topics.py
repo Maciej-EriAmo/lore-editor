@@ -22,6 +22,7 @@ SZYBKI START
 3. Plik → Otwórz… — wybierz rozdział (.txt / .md).
 4. Panel Lore (po prawej) → + Postać / + Pomysł / + Wpływ.
 5. Ctrl+S — zapisuje rozdział i lore w jednym kroku.
+6. Opcjonalnie: Ctrl+Shift+D (słownik nazw) · F7 (pisownia SJP) — temat „Słownik i pisownia”.
 
 PIERWSZE URUCHOMIENIE
 Automatycznie powstaje folder .lore-history/ (snapshoty ratunkowe).
@@ -37,11 +38,17 @@ WARSTWY PROJEKTU
 • .txt / .md — Twoja proza (rozdziały)
 • .kafd — graf lore (postacie, relacje, stany czasowe)
 • .lore-history/ — historia zmian (przywracanie całego projektu)
+• .lore-spelling.json — słowa dodane przy F7 (opcjonalnie)
 
 PROJEKT
 • Nazwa = nazwa folderu lub wpis w .lore-project.
-• Format lore: Lore Pack — jeden plik .kafd, bez shards/.
+• Format lore: Lore Pack — jeden plik .kafd (magazyn atomów Karmazyn), bez shards/.
 • Stary format (*.meta.json + shards/) migruje się przy zapisie.
+• Domyślnie BEZ sieci — silnik Cynober DB w tym samym procesie.
+
+SIEĆ (skrót)
+To NIE jest zwykłe TCP/HTTP. Tryb --rpc = protokół Karmazyn + cynober-server.
+Szczegóły: temat „Sieć: Karmazyn i Cynober DB”.
 
 PASEK STATUSU
 Ścieżka · słowa · strony · (Courier) ~minut scenariusza · kodowanie.
@@ -62,6 +69,8 @@ EDYCJA
   Ctrl+Z          Cofnij
   Ctrl+Y          Ponów
   Ctrl+F          Znajdź (w tekście rozdziału)
+  Ctrl+Shift+D    Słownik nazw (lore)
+  F7              Sprawdź pisownię
 
 INNE
   F1              Ta pomoc (przewodnik)
@@ -142,6 +151,41 @@ Podgląd to orientacyjna paginacja — przed wysyłką do wydawcy sprawdź DOCX 
 )
 
 _topic(
+    "Słownik i pisownia",
+    """
+Menu: Edycja
+
+SŁOWNIK NAZW (Ctrl+Shift+D)
+Szybki podgląd postaci, miejsc i innych wpisów z grafu lore.
+• Wpisz fragment nazwy (lub zaznacz słowo w tekście — pole wyszukiwania się wypełni).
+• Filtruj po typie (Postać, Miejsce, …).
+• Dwuklik lub „Wstaw do tekstu” — wstawia nazwę w miejscu kursora.
+• Nie jest to słownik PWN — to spis nazw własnych Twojego świata.
+
+SPRAWDŹ PISOWNIĘ (F7)
+Offline, bez sieci. Silnik (w tej kolejności):
+1. Nazwy z lore + Twój słownik projektu (.lore-spelling.json)
+2. Słownik ortograficzny SJP.PL (format hunspell, licencja m.in. Apache 2.0)
+   — pełna fleksja polska; wymaga pakietu spylls (jest w zależnościach)
+3. Zapas: lista częstych słów PL (gdy brak SJP/spylls)
+
+Źródło SJP: https://sjp.pl/slownik/ort/ — atrybucja w lore/data/sjp/NOTICE.txt
+
+W oknie korekty:
+  Zamień — wstaw wybraną sugestię
+  Ignoruj — pomiń w tej sesji
+  Dodaj do słownika — zapisz w .lore-spelling.json
+  Szukaj w lore… — otwórz słownik nazw dla tego słowa
+
+Podkreślenie na czerwono = słowo spoza SJP i lore. Akronimy (np. FBI) są
+traktowane jako poprawne.
+
+Wskazówka: najpierw uzupełnij panel Lore (postacie, miejsca) — wtedy korekta
+nie zgłasza ich jako błędy.
+""",
+)
+
+_topic(
     "Panel Lore",
     """
 Panel po prawej — zakładki Rozdział · Szukaj · Zespół.
@@ -169,7 +213,7 @@ LISTA ROZDZIAŁU
 INNE
   Mapa powiązań   Graf wokół rozdziału lub wpisu
   Szukaj          Zapytania semantyczne — patrz temat „Zapytania semantyczne”
-  Zespół          Sync przez cynober-server (tryb lokalny)
+  Zespół          Sync przez cynober-server (protokół Karmazyn — patrz temat Sieć)
 """,
 )
 
@@ -238,6 +282,7 @@ STRUKTURA FOLDERU
     MojaPowiesc.kafd      Graf lore (Lore Pack)
 
 CO JEST W .kafd
+  • Format: Lore Pack w magazynie atomów Karmazyn (silnik Cynober DB)
   • Bąble: postacie, pomysły, dokumenty, wpływy, miejsca…
   • Relacje: występuje w, koliguje z, wpływa na, inspiruje…
   • Stany — mutacje notatek/opisów per rozdział (kontekst czasowy)
@@ -291,17 +336,90 @@ zepsutym .kafd lub przypadkowym usunięciu postaci.
 )
 
 _topic(
+    "Sieć: Karmazyn i Cynober DB",
+    """
+UWAGA — TO NIE JEST „ZWYKŁA SIEĆ”
+Port 8080 i --host sugerują zwykłe TCP. W rzeczywistości Lore Editor w trybie
+sieciowym używa protokołu Karmazyn (handshake HSS, link HSL, ramki binarne)
+oraz KarminQL-RPC w JSON — na serwerze cynober-server z pakietu cynober-db.
+Nie ma tu HTTP, REST ani SQL.
+
+DOMYŚLNIE: BEZ SIECI (offline-first)
+  • Edytor → silnik Cynober DB w jednym procesie Pythona
+  • Zapis lore: plik .kafd (atomowy magazyn Karmazyn)
+  • Rozdziały: zwykłe .txt / .md na dysku
+  • Żaden socket — zalecane dla pisania solo
+
+PRACA W SIECI (jawnie: --rpc)
+  lore-editor --rpc --host ADRES [--port 8080]
+
+  Stos połączenia:
+    TCP/IP  →  Karmazyn HSS (handshake, szyfrowanie)
+            →  Karmazyn HSL (sesja RPC)
+            →  ramki _send_frame / _recv_frame
+            →  JSON { "query": "linia KarminQL" }
+            →  cynober-server (Cynober-Secure-1.2)
+
+  Po sieci idzie tylko GRAF LORE (świat Cynober). Tekst rozdziałów zostaje
+  lokalnie u pisarza.
+
+SERWER
+  Uruchom na hoście z lore:  cynober-server  (port 8080)
+  Klient: pakiet cynober-db, moduł cynober_client
+
+PROFIL (opcjonalnie)
+  ~/.karmazyn_client.json — host, port, ustawienia HSS
+  lore-editor --rpc --profile nazwa
+
+SYNC ZESPOŁU (zakładka Zespół)
+  Osobna ścieżka: cynober_replicate (push / pull / sync).
+  Znowu TCP + protokół Cynober/Karmazyn — nie upload FTP/SFTP pliku .kafd
+  jako „protokół aplikacji”. Wymaga trybu lokalnego i wcześniejszego zapisu .kafd.
+
+TO NIE JEST (typowe pomyłki)
+
+  HTTP / REST / WebSocket
+    Port 8080 ≠ serwer WWW. Brak GET /api/…, nagłówków HTTP i JSON-API.
+
+  Baza SQL (PostgreSQL, SQLite, MySQL…)
+    Lore = Cynober DB, atomy Karmazyn w .kafd — nie tabele SQL.
+
+  „Zwykły” TCP z własnym JSON-em
+    Najpierw Karmazyn HSS + HSL + ramki binarne; dopiero wewnątrz JSON
+    z polem "query" (KarminQL-RPC, Cynober-Secure-1.2).
+
+  FTP / SFTP / rsync jako sync aplikacji
+    Nie zastępuje cynober-server ani cynober_replicate. Wrzucenie .kafd
+    na dysk to backup pliku, nie protokół współpracy między edytorami.
+
+  Własny backend bez cynober-server
+    --rpc łączy się wyłącznie z serwerem Cynober-Secure-1.2.
+
+  DOZWOLONE OBOK TEGO
+    Ręczna kopia całego folderu projektu na backup/chmurę — archiwum
+    plików; nie zastępuje komunikacji Karmazyn w trybie --rpc lub Zespół.
+
+BAZA DANYCH
+  Dedykowany silnik: Cynober DB (cynober-db >= 8.0.1).
+  Format na dysku: .kafd = Lore Pack w vfs Karmazyn.
+  Zapytania: KarminQL (ukryte pod API LoreStore dla pisarza).
+""",
+)
+
+_topic(
     "O programie",
     f"""
 Lore Editor v{__version__}
-Silnik lore: Cynober DB (cynober-db >= 8.0.1)
+Silnik lore: Cynober DB (cynober-db >= 8.0.1) — magazyn atomów Karmazyn (.kafd)
 Repozytorium: github.com/Maciej-EriAmo/lore-editor
 
 Funkcje: kontekst czasowy lore, zapytania semantyczne, termodynamika wpisów,
-historia zmian projektu, transakcyjny zapis tekstu + grafu.
+historia zmian projektu, transakcyjny zapis tekstu + grafu, słownik nazw,
+sprawdzanie pisowni (SJP.PL + spylls).
 
 Tryb offline-first — bez serwera, bez Lua.
-Opcjonalnie: --rpc dla współpracy przez cynober-server.
+Sieć (opcjonalnie): protokół Karmazyn + cynober-server (--rpc). Patrz temat
+„Sieć: Karmazyn i Cynober DB”.
 
 Instalacja:
   pip install "cynober-db>=8.0.1"
@@ -310,7 +428,12 @@ Instalacja:
 
 Pakiet exe: .\\scripts\\build_nuitka.ps1
 
-Licencja: MIT
+Licencja kodu: MIT
+
+Składowe (pisownia):
+  • Słownik SJP.PL (hunspell pl_PL) — Apache 2.0 (oraz GPL/LGPL/MPL/CC BY)
+    https://sjp.pl/slownik/ort/ — atrybucja: lore/data/sjp/NOTICE.txt
+  • spylls — silnik hunspell w Pythonie (zależność PyPI)
 """,
 )
 
