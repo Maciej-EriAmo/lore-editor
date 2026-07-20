@@ -12,6 +12,7 @@ from typing import Optional
 from lore.dictionary_view import open_name_dictionary, open_spellcheck
 from lore.document_hooks import on_file_opened, on_file_saved
 from lore.panel import LorePanel
+from lore.paths import default_work_dir, save_last_work_dir
 from lore.store import LoreStore
 from lore.text_io import read_text_smart, write_text_atomic
 from lore.theme import apply_theme, style_text
@@ -73,6 +74,8 @@ class EditorWindow:
         apply_theme(self.root)
 
         self._status_var = tk.StringVar(value="Gotowy")
+        self._proj_label_var = tk.StringVar(value=f"  ·  {self._proj}")
+        self._path_status_var = tk.StringVar(value=str(self._proj_root))
         self._build_ui()
         self._build_menu()
         self._bind_shortcuts()
@@ -165,7 +168,7 @@ class EditorWindow:
         top = ttk.Frame(self.root, padding=(8, 6))
         top.pack(fill="x")
         ttk.Label(top, text="Lore Editor", style="Head.TLabel").pack(side="left")
-        ttk.Label(top, text=f"  ·  {self._proj}", style="Dim.TLabel").pack(side="left")
+        ttk.Label(top, textvariable=self._proj_label_var, style="Dim.TLabel").pack(side="left")
 
         toolbar = ttk.Frame(top)
         toolbar.pack(side="right")
@@ -173,6 +176,7 @@ class EditorWindow:
         ttk.Button(toolbar, text="Otwórz…", command=self._open_dialog).pack(side="left", padx=2)
         ttk.Button(toolbar, text="Zapisz", command=self._save).pack(side="left", padx=2)
         ttk.Button(toolbar, text="Zapisz jako…", command=self._save_as).pack(side="left", padx=2)
+        ttk.Button(toolbar, text="Katalog…", command=self._choose_project_dir).pack(side="left", padx=2)
         ttk.Button(toolbar, text="Zamknij kartę", command=self._close_current_tab).pack(side="left", padx=2)
 
         paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
@@ -193,7 +197,9 @@ class EditorWindow:
         status = ttk.Frame(self.root, padding=(8, 4))
         status.pack(fill="x", side="bottom")
         ttk.Label(status, textvariable=self._status_var, style="Dim.TLabel").pack(side="left")
-        ttk.Label(status, text=str(self._proj_root), style="Dim.TLabel").pack(side="right")
+        path_lbl = ttk.Label(status, textvariable=self._path_status_var, style="Dim.TLabel", cursor="hand2")
+        path_lbl.pack(side="right")
+        path_lbl.bind("<Button-1>", lambda _e: self._choose_project_dir())
 
     def _build_menu(self) -> None:
         menubar = tk.Menu(self.root)
@@ -206,6 +212,16 @@ class EditorWindow:
         file_m.add_separator()
         file_m.add_command(label="Zapisz", accelerator="Ctrl+S", command=self._save)
         file_m.add_command(label="Zapisz jako…", accelerator="Ctrl+Shift+S", command=self._save_as)
+        file_m.add_separator()
+        file_m.add_command(
+            label="Katalog projektu…",
+            accelerator="Ctrl+Shift+O",
+            command=self._choose_project_dir,
+        )
+        file_m.add_command(
+            label="Domyślny katalog (dokumenty/lore)",
+            command=self._use_default_project_dir,
+        )
         file_m.add_separator()
         file_m.add_command(label="Zamknij kartę", accelerator="Ctrl+W", command=self._close_current_tab)
         file_m.add_command(label="Zapisz projekt lore", command=self._save_lore)
@@ -364,6 +380,7 @@ class EditorWindow:
         self.root.bind_all("<Control-w>", lambda e: self._close_current_tab())
         self.root.bind_all("<Control-f>", lambda e: self._show_find())
         self.root.bind_all("<Control-Shift-D>", lambda e: self._show_name_dictionary())
+        self.root.bind_all("<Control-Shift-O>", lambda e: self._choose_project_dir())
         self.root.bind_all("<F7>", lambda e: self._show_spellcheck())
         self.root.bind_all("<F1>", lambda e: open_help(self.root, "Przewodnik pisarza"))
 
@@ -746,6 +763,127 @@ class EditorWindow:
             self._status_var.set("Projekt lore zapisany")
         except Exception as e:
             messagebox.showerror("Błąd", str(e), parent=self.root)
+
+    def _choose_project_dir(self) -> None:
+        """Plik → Katalog projektu… — wybór folderu powieści z GUI."""
+        kwargs = dict(
+            parent=self.root,
+            title="Katalog projektu (powieść)",
+            initialdir=str(self._proj_root),
+        )
+        try:
+            chosen = filedialog.askdirectory(**kwargs, mustexist=False)
+        except TypeError:
+            chosen = filedialog.askdirectory(**kwargs)
+        if not chosen:
+            return
+        self._switch_project_dir(Path(chosen))
+
+    def _use_default_project_dir(self) -> None:
+        """Przełącz na domyślny ../dokumenty/lore."""
+        target = default_work_dir()
+        if not messagebox.askyesno(
+            "Domyślny katalog",
+            f"Ustawić katalog projektu na:\n{target} ?",
+            parent=self.root,
+        ):
+            return
+        self._switch_project_dir(target)
+
+    def _switch_project_dir(self, new_root: Path) -> None:
+        """Zamknij bieżący projekt i otwórz inny katalog (tryb lokalny)."""
+        new_root = Path(new_root).expanduser().resolve()
+        if new_root == self._proj_root.resolve():
+            self._status_var.set(f"Katalog bez zmian: {new_root}")
+            return
+
+        if not self._lore.tryb_lokalny():
+            messagebox.showinfo(
+                "Katalog projektu",
+                "W trybie sieciowym (--rpc) zmień katalog przy starcie:\n"
+                f"  lore-editor --rpc --project-dir \"{new_root}\"\n\n"
+                "Albo zamknij edytor i uruchom lokalnie.",
+                parent=self.root,
+            )
+            return
+
+        # Zapisz karty
+        for tab_id in list(self._tabs.keys()):
+            tab = self._tabs[tab_id]
+            if tab.dirty:
+                self._notebook.select(tab_id)
+                if not self._confirm_save_tab(tab):
+                    return
+
+        zapisz_lore = True
+        if self._lore.lore_niezapisane():
+            ans = messagebox.askyesnocancel(
+                "Niezapisane lore",
+                "Zapisać graf lore przed zmianą katalogu?",
+                parent=self.root,
+            )
+            if ans is None:
+                return
+            zapisz_lore = bool(ans)
+
+        old = self._lore
+        try:
+            old.close(zapisz_lore=zapisz_lore)
+        except Exception as e:
+            if not messagebox.askyesno(
+                "Katalog projektu",
+                f"Nie udało się domknąć poprzedniego projektu:\n{e}\n\nKontynuować?",
+                parent=self.root,
+            ):
+                return
+
+        try:
+            new_root.mkdir(parents=True, exist_ok=True)
+            new_lore = LoreStore.open_local(project_dir=new_root)
+        except Exception as e:
+            messagebox.showerror(
+                "Katalog projektu",
+                f"Nie otwarto „{new_root}”:\n{e}",
+                parent=self.root,
+            )
+            # próba powrotu — najlepiej nie zostawiać bez store; otwórz stary root
+            try:
+                self._lore = LoreStore.open_local(project_dir=self._proj_root)
+                self._panel.set_lore(self._lore)
+            except Exception:
+                pass
+            return
+
+        self._lore = new_lore
+        self._proj = new_lore.nazwa_projektu()
+        self._proj_root = new_lore.katalog_projektu()
+        save_last_work_dir(self._proj_root)
+        try:
+            import os
+
+            os.chdir(self._proj_root)
+        except OSError:
+            pass
+
+        self._proj_label_var.set(f"  ·  {self._proj}")
+        self._path_status_var.set(str(self._proj_root))
+        self._panel.set_lore(self._lore)
+
+        # Wyczyść karty (tekst starego projektu) — bez ponownego potwierdzenia (już zapisane)
+        for tab_id in list(self._tabs.keys()):
+            tab = self._tabs[tab_id]
+            self._notebook.forget(tab_id)
+            tab.frame.destroy()
+            del self._tabs[tab_id]
+        self._new_tab()
+        self._update_window_title()
+        self._update_status()
+        self._status_var.set(f"Katalog projektu: {self._proj_root}")
+        messagebox.showinfo(
+            "Katalog projektu",
+            f"Otwarto projekt „{self._proj}”\n{self._proj_root}",
+            parent=self.root,
+        )
 
     def _create_snapshot(self) -> None:
         from tkinter import simpledialog

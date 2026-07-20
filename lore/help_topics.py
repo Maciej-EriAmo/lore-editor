@@ -17,15 +17,30 @@ _topic(
 Lore Editor v{__version__} — edytor rozdziałów z panelem lore (postacie, pomysły, wpływy).
 
 SZYBKI START
-1. Otwórz folder powieści (lub utwórz .lore-project z linią name=NazwaProjektu).
-2. Uruchom: lore-editor
-3. Plik → Otwórz… — wybierz rozdział (.txt / .md).
-4. Panel Lore (po prawej) → + Postać / + Pomysł / + Wpływ.
-5. Ctrl+S — zapisuje rozdział i lore w jednym kroku.
-6. Opcjonalnie: Ctrl+Shift+D (słownik nazw) · F7 (pisownia SJP) — temat „Słownik i pisownia”.
+1. Uruchom: lore-editor
+   • domyślny katalog: ../dokumenty/lore (obok repo lore-editor)
+   • albo: lore-editor --project-dir ŚCIEŻKA
+   • albo: cd do folderu z .lore-project
+2. Plik → Otwórz… — wybierz rozdział (.txt / .md).
+3. Panel Lore (po prawej) → + Postać / + Pomysł / + Wpływ.
+4. Ctrl+S — zapisuje rozdział i lore w jednym kroku.
+5. Opcjonalnie: Ctrl+Shift+D (słownik nazw) · F7 (pisownia SJP).
+
+KATALOG PRACY (kolejność)
+1. --project-dir DIR
+2. zmienna LORE_PROJECT_DIR
+3. plik .lore-project w cwd lub rodzicach
+4. ostatni wybór z GUI (Plik → Katalog projektu…)
+5. domyślnie ../dokumenty/lore (nadpisz: LORE_DEFAULT_WORK_DIR)
+
+W PROGRAMIE (GUI)
+  Plik → Katalog projektu… (Ctrl+Shift+O) — wybierz folder powieści
+  Plik → Domyślny katalog (dokumenty/lore)
+  Pasek narzędzi: „Katalog…” · klik w ścieżkę na pasku statusu
+  Wybór zapamiętuje się w %USERPROFILE%\\.lore_editor\\last_work_dir.json
 
 PIERWSZE URUCHOMIENIE
-Automatycznie powstaje folder .lore-history/ (snapshoty ratunkowe).
+W katalogu pracy powstaje .lore-project i .lore-history/ (snapshoty).
 Istniejący projekt dostaje snapshot „Stan początkowy projektu”.
 Uwzględnij .lore-history/ w backupie (chmura, dysk zewnętrzny).
 
@@ -41,7 +56,8 @@ WARSTWY PROJEKTU
 • .lore-spelling.json — słowa dodane przy F7 (opcjonalnie)
 
 PROJEKT
-• Nazwa = nazwa folderu lub wpis w .lore-project.
+• Katalog: --project-dir / LORE_PROJECT_DIR / .lore-project / ../dokumenty/lore
+• Nazwa = name= w .lore-project, --project, albo nazwa folderu.
 • Format lore: Lore Pack — jeden plik .kafd (magazyn atomów Karmazyn), bez shards/.
 • Stary format (*.meta.json + shards/) migruje się przy zapisie.
 • Domyślnie BEZ sieci — silnik Cynober DB w tym samym procesie.
@@ -70,6 +86,7 @@ EDYCJA
   Ctrl+Y          Ponów
   Ctrl+F          Znajdź (w tekście rozdziału)
   Ctrl+Shift+D    Słownik nazw (lore)
+  Ctrl+Shift+O    Katalog projektu…
   F7              Sprawdź pisownię
 
 INNE

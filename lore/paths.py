@@ -13,6 +13,82 @@ from cynober_worlds import validate_world_name
 LORE_PROJECT_FILE = ".lore-project"
 DEFAULT_PROJECT_NAME = "MojaPowiesc"
 
+# Domyślny katalog pracy, gdy nie podano --project-dir / LORE_PROJECT_DIR
+# i nie znaleziono .lore-project. Względem korzenia repo: ../dokumenty/lore
+DEFAULT_WORK_DIR_REL = Path("dokumenty") / "lore"
+ENV_PROJECT_DIR = "LORE_PROJECT_DIR"
+ENV_DEFAULT_WORK_DIR = "LORE_DEFAULT_WORK_DIR"
+
+# Ostatni katalog wybrany w GUI (Plik → Katalog projektu…)
+SETTINGS_DIR = Path.home() / ".lore_editor"
+LAST_WORK_DIR_FILE = SETTINGS_DIR / "last_work_dir.json"
+
+
+def _repo_or_package_root() -> Path:
+    """Katalog z pyproject/run_lore_editor (edytowalna instalacja) albo rodzic pakietu lore/."""
+    here = Path(__file__).resolve().parent  # .../lore
+    parent = here.parent
+    if (parent / "pyproject.toml").is_file() or (parent / "run_lore_editor.py").is_file():
+        return parent
+    return parent
+
+
+def default_work_dir(*, cwd: Path | None = None) -> Path:
+    """
+    Docelowy katalog pracy (powieść), gdy nie wskazano inaczej.
+
+    Kolejność:
+    1. LORE_DEFAULT_WORK_DIR (absolutna lub względna względem cwd)
+    2. ../dokumenty/lore względem korzenia repo (sibling: <rodzic_repo>/dokumenty/lore)
+    3. ~/dokumenty/lore (gdy pakiet zainstalowany bez drzewa repo)
+    """
+    env = os.environ.get(ENV_DEFAULT_WORK_DIR, "").strip()
+    if env:
+        p = Path(env).expanduser()
+        if not p.is_absolute():
+            base = (cwd or Path.cwd()).resolve()
+            p = (base / p).resolve()
+        else:
+            p = p.resolve()
+        return p
+
+    repo = _repo_or_package_root()
+    # Edytowalny checkout: lore-editor/ → ../dokumenty/lore
+    if (repo / "pyproject.toml").is_file() or (repo / "run_lore_editor.py").is_file():
+        return (repo.parent / DEFAULT_WORK_DIR_REL).resolve()
+
+    return (Path.home() / DEFAULT_WORK_DIR_REL).resolve()
+
+
+def load_last_work_dir() -> Optional[Path]:
+    """Ostatni katalog pracy zapisany z GUI (jeśli istnieje)."""
+    if not LAST_WORK_DIR_FILE.is_file():
+        return None
+    try:
+        import json
+
+        data = json.loads(LAST_WORK_DIR_FILE.read_text(encoding="utf-8"))
+        raw = (data.get("path") or "").strip()
+        if not raw:
+            return None
+        p = Path(raw).expanduser().resolve()
+        return p
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def save_last_work_dir(path: str | Path) -> Path:
+    """Zapisz katalog pracy wybrany w GUI (następne uruchomienia)."""
+    import json
+
+    root = Path(path).expanduser().resolve()
+    SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+    LAST_WORK_DIR_FILE.write_text(
+        json.dumps({"path": str(root), "version": 1}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return root
+
 
 @dataclass(frozen=True)
 class ProjectPaths:
@@ -31,9 +107,11 @@ class ProjectPaths:
     ) -> "ProjectPaths":
         """
         Kolejność:
-        1. --project-dir / LORE_PROJECT_DIR
-        2. plik .lore-project (cwd lub rodzice)
-        3. bieżący katalog (cwd)
+        1. --project-dir (jawny argument)
+        2. LORE_PROJECT_DIR
+        3. plik .lore-project (cwd lub rodzice)
+        4. ostatni katalog z GUI (~/.lore_editor/last_work_dir.json)
+        5. domyślny katalog pracy: ../dokumenty/lore (lub LORE_DEFAULT_WORK_DIR)
         """
         work = (cwd or Path.cwd()).resolve()
         cli_name = (project or "").strip() or None
@@ -43,7 +121,7 @@ class ProjectPaths:
             name = cls._pick_name(root, cli_name)
             return cls._open(name, root)
 
-        env = os.environ.get("LORE_PROJECT_DIR", "").strip()
+        env = os.environ.get(ENV_PROJECT_DIR, "").strip()
         if env:
             root = Path(env).expanduser().resolve()
             name = cls._pick_name(root, cli_name)
@@ -55,8 +133,14 @@ class ProjectPaths:
             name = cli_name or file_name or cls._name_from_folder(marker_root)
             return cls._open(name, marker_root)
 
-        name = cli_name or cls._name_from_folder(work)
-        return cls._open(name, work)
+        last = load_last_work_dir()
+        if last is not None:
+            name = cli_name or cls._name_from_folder(last)
+            return cls._open(name, last)
+
+        root = default_work_dir(cwd=work)
+        name = cli_name or cls._name_from_folder(root)
+        return cls._open(name, root)
 
     @classmethod
     def resolve(cls, name: str, root: str | Path | None = None) -> "ProjectPaths":

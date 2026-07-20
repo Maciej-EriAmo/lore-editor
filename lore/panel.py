@@ -123,7 +123,24 @@ class LorePanel(ttk.Frame):
         self._get_file = get_current_file or (lambda: "")
         self._on_open = on_open_entity
 
+        self._proj_name_var = tk.StringVar(value=self._lore.nazwa_projektu())
+        self._proj_folder_var = tk.StringVar(value=self._format_folder(self._lore.katalog_projektu()))
+
         self._build_ui()
+        self.odswiez()
+
+    @staticmethod
+    def _format_folder(path) -> str:
+        folder = str(path)
+        if len(folder) > 42:
+            return "…" + folder[-39:]
+        return folder
+
+    def set_lore(self, lore: LoreStore) -> None:
+        """Podmień store po zmianie katalogu projektu z GUI."""
+        self._lore = lore
+        self._proj_name_var.set(lore.nazwa_projektu())
+        self._proj_folder_var.set(self._format_folder(lore.katalog_projektu()))
         self.odswiez()
 
     def _build_ui(self) -> None:
@@ -132,13 +149,10 @@ class LorePanel(ttk.Frame):
         ttk.Label(hdr, text="Lore", style="Head.TLabel").pack(anchor="w")
         ttk.Label(
             hdr,
-            text=self._lore.nazwa_projektu(),
+            textvariable=self._proj_name_var,
             style="Dim.TLabel",
         ).pack(anchor="w")
-        folder = str(self._lore.katalog_projektu())
-        if len(folder) > 42:
-            folder = "…" + folder[-39:]
-        ttk.Label(hdr, text=folder, style="Dim.TLabel").pack(anchor="w")
+        ttk.Label(hdr, textvariable=self._proj_folder_var, style="Dim.TLabel").pack(anchor="w")
 
         add = ttk.LabelFrame(self, text="Dodaj", padding=4)
         add.pack(fill="x", pady=(0, 6))

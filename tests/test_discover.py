@@ -1,21 +1,53 @@
-"""Testy auto-wykrywania projektu (.lore-project, cwd)."""
+"""Testy auto-wykrywania projektu (.lore-project, domyślny katalog pracy)."""
 
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from lore.paths import LORE_PROJECT_FILE, ProjectPaths
+from lore.paths import (
+    ENV_DEFAULT_WORK_DIR,
+    ENV_PROJECT_DIR,
+    LORE_PROJECT_FILE,
+    ProjectPaths,
+    default_work_dir,
+    load_last_work_dir,
+    save_last_work_dir,
+)
 
 
 class TestDiscover(unittest.TestCase):
-    def test_cwd_as_default_root(self):
+    def test_default_work_dir_when_no_marker(self):
+        """Bez .lore-project i bez last_work_dir → ../dokumenty/lore."""
         with tempfile.TemporaryDirectory() as tmp:
-            work = Path(tmp) / "MojaPowiesc"
+            work = Path(tmp) / "losowy-cwd"
             work.mkdir()
-            p = ProjectPaths.discover(cwd=work)
-            self.assertEqual(p.root, work.resolve())
-            self.assertEqual(p.name, "MojaPowiesc")
+            with mock_last_work_file(Path(tmp) / "brak.json"):
+                expected = default_work_dir(cwd=work)
+                p = ProjectPaths.discover(cwd=work)
+                self.assertEqual(p.root, expected)
+                self.assertEqual(p.name, expected.name)
+
+    def test_default_work_dir_path_shape(self):
+        d = default_work_dir()
+        self.assertTrue(str(d).replace("\\", "/").endswith("dokumenty/lore") or d.name == "lore")
+        self.assertEqual(d.name, "lore")
+        self.assertEqual(d.parent.name, "dokumenty")
+
+    def test_lore_default_work_dir_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            custom = Path(tmp) / "moja-praca"
+            os.environ[ENV_DEFAULT_WORK_DIR] = str(custom)
+            try:
+                # bez markera i bez LORE_PROJECT_DIR / last GUI
+                os.environ.pop(ENV_PROJECT_DIR, None)
+                work = Path(tmp) / "cwd"
+                work.mkdir()
+                with mock_last_work_file(Path(tmp) / "brak.json"):
+                    p = ProjectPaths.discover(cwd=work)
+                    self.assertEqual(p.root, custom.resolve())
+            finally:
+                os.environ.pop(ENV_DEFAULT_WORK_DIR, None)
 
     def test_lore_project_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -69,13 +101,57 @@ class TestDiscover(unittest.TestCase):
 
     def test_env_lore_project_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
-            os.environ["LORE_PROJECT_DIR"] = tmp
+            os.environ[ENV_PROJECT_DIR] = tmp
             try:
                 p = ProjectPaths.discover("EnvProj")
                 self.assertEqual(p.root, Path(tmp).resolve())
                 self.assertEqual(p.name, "EnvProj")
             finally:
-                os.environ.pop("LORE_PROJECT_DIR", None)
+                os.environ.pop(ENV_PROJECT_DIR, None)
+
+    def test_explicit_beats_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            chosen = Path(tmp) / "wskazany"
+            chosen.mkdir()
+            p = ProjectPaths.discover(project_dir=chosen)
+            self.assertEqual(p.root, chosen.resolve())
+            self.assertNotEqual(p.root, default_work_dir())
+
+    def test_last_work_dir_from_gui(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            gui_dir = Path(tmp) / "z-gui"
+            gui_dir.mkdir()
+            # izoluj plik last_work_dir
+            with mock_last_work_file(Path(tmp) / "last.json"):
+                saved = save_last_work_dir(gui_dir)
+                self.assertEqual(saved, gui_dir.resolve())
+                self.assertEqual(load_last_work_dir(), gui_dir.resolve())
+                work = Path(tmp) / "inny-cwd"
+                work.mkdir()
+                p = ProjectPaths.discover(cwd=work)
+                self.assertEqual(p.root, gui_dir.resolve())
+
+
+class _LastWorkCtx:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._old = None
+
+    def __enter__(self):
+        import lore.paths as paths_mod
+
+        self._old = paths_mod.LAST_WORK_DIR_FILE
+        paths_mod.LAST_WORK_DIR_FILE = self.path
+        return self
+
+    def __exit__(self, *args):
+        import lore.paths as paths_mod
+
+        paths_mod.LAST_WORK_DIR_FILE = self._old
+
+
+def mock_last_work_file(path: Path) -> _LastWorkCtx:
+    return _LastWorkCtx(path)
 
 
 if __name__ == "__main__":

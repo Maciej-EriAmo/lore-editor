@@ -37,30 +37,56 @@ Opcjonalne czcionki (Lexend, OpenDyslexic):
 
 ## Projekt — zero konfiguracji
 
-**Opcja A:** uruchom z folderu powieści — cwd = projekt:
+### Katalog pracy (kolejność)
+
+1. **`--project-dir DIR`** — wskazany folder  
+2. **`LORE_PROJECT_DIR`** — zmienna środowiskowa  
+3. **`.lore-project`** — w cwd lub katalogach nadrzędnych  
+4. **Ostatni wybór z GUI** — `Plik → Katalog projektu…` (zapis w `~/.lore_editor/last_work_dir.json`)  
+5. **Domyślnie:** `../dokumenty/lore` względem korzenia repo `lore-editor`  
+   (np. `C:\Users\…\dokumenty\lore` obok `…\lore-editor`)  
+   Nadpisz: `LORE_DEFAULT_WORK_DIR`.
+
+**Z poziomu okna (GUI):**
+
+| Akcja | Gdzie |
+|-------|--------|
+| Wybierz folder powieści | **Plik → Katalog projektu…** (`Ctrl+Shift+O`) lub przycisk **Katalog…** |
+| Wróć do `dokumenty/lore` | **Plik → Domyślny katalog (dokumenty/lore)** |
+| Szybki klik | ścieżka projektu na **pasku statusu** (prawo) |
+
+**Opcja A — domyślny folder (zalecane przy starcie ze skrótu / z repo):**
 
 ```powershell
-cd ~/Documents/MojaPowiesc
+lore-editor
+# → …/dokumenty/lore  (tworzony przy pierwszym starcie)
+```
+
+**Opcja B — wskazany katalog:**
+
+```bash
+lore-editor --project-dir ~/dokumenty/InnaPowiesc
+# albo
+set LORE_PROJECT_DIR=D:\Pisanie\Saga
 lore-editor
 ```
 
-Nazwa projektu = nazwa folderu (np. `MojaPowiesc`).
+**Opcja C — folder z markerem (cd do powieści):**
 
-**Opcja B:** plik `.lore-project` w katalogu:
+```powershell
+cd ~/dokumenty/MojaPowiesc   # zawiera .lore-project
+lore-editor
+```
+
+Plik `.lore-project`:
 
 ```
 name=MojaPowiesc
 ```
 
-Edytor szuka pliku w cwd i katalogach nadrzędnych.
+Nazwa świata = `name=` z markera, `--project`, albo nazwa folderu.
 
-**Opcja C:** jawnie:
-
-```bash
-lore-editor --project-dir ~/Documents/MojaPowiesc
-```
-
-Przy **pierwszym uruchomieniu** tworzy się:
+Przy **pierwszym uruchomieniu** w wybranym katalogu tworzy się:
 
 - `.lore-project` (znacznik projektu)
 - `.lore-history/` (historia zmian — snapshoty lore + rozdziałów)
@@ -105,7 +131,8 @@ Stary format (`*.meta.json` + `shards/`) jest **automatycznie migrowany** przy z
 ## Uruchomienie
 
 ```bash
-lore-editor                              # z katalogu projektu (domyślnie: bez sieci)
+lore-editor                              # domyślnie: ../dokumenty/lore (bez sieci)
+lore-editor --project-dir D:\Pisanie\X   # wskazany katalog pracy
 lore-editor --file rozdzial_01.txt       # jeden plik
 lore-editor rozdzial_01.txt rozdzial_02.md   # kilka kart
 lore-editor --rpc --host 192.168.1.10    # lore przez cynober-server (patrz niżej)
@@ -211,6 +238,7 @@ Menu **Pomoc** (lub **F1**):
 | Ctrl+Z / Ctrl+Y | Cofnij / Ponów |
 | Ctrl+F | Znajdź (w tekście rozdziału) |
 | Ctrl+Shift+D | Słownik nazw (lore) |
+| Ctrl+Shift+O | Katalog projektu… |
 | F7 | Sprawdź pisownię (SJP + lore) |
 | F1 | Pomoc |
 
