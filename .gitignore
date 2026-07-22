@@ -1,14 +1,29 @@
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# Build / packaging
 dist/
 build/
 *.build/
-*.egg-info/
-.venv/
+
+# Env / secrets
 .env
+
+# Project runtime data (created when editor is run from repo)
 *.kafd
 *.meta.json
 .lore-project
+.lore-history/
 shards/
-.pytest_cache/
+peers.json
+
+# Local tooling dumps (not part of the app)
+mcps/
+proca/
+
+# Vendored dependency (tracked separately / optional)
 vendor/Astraedit/
