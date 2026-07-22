@@ -21,12 +21,10 @@ if (Test-Path $Pyproject) {
 }
 $FileVersion = if ($Version -match '^\d+\.\d+\.\d+') { "$Version.0" } else { "0.0.0.0" }
 
-Write-Host "=== Lore Editor $Version — Nuitka standalone ===" -ForegroundColor Cyan
+Write-Host "=== Lore Editor $Version - Nuitka standalone ===" -ForegroundColor Cyan
 
-# Zależności runtime + tool
 python -m pip install --upgrade "nuitka" "ordered-set" "zstandard" "cynober-db>=8.0.1" "python-docx>=1.1.0" "spylls>=0.1.7" 2>&1 | Out-Null
 
-# Moduły Cynober / Karmazyn (często dynamiczne — jawny include)
 $modules = @(
     "cynober_worlds", "cynober_world_shards", "cynober_auto_flush",
     "cynober_replicate", "cynober_client", "cynober_rpc", "cynober_client_config",
@@ -35,13 +33,14 @@ $modules = @(
     "karmazyn_atom", "karmazyn_atomstore", "karmazyn_exec", "karmazyn_proca"
 )
 
+$dataDir = Join-Path $RepoRoot "lore\data"
 $include = @(
     "--include-package=lore",
     "--include-package-data=lore",
     "--include-package=spylls",
     "--include-package=docx",
     "--include-package=lxml",
-    "--include-data-dir=$(Join-Path $RepoRoot 'lore\data')=lore/data"
+    "--include-data-dir=${dataDir}=lore/data"
 )
 $include += $modules | ForEach-Object { "--include-module=$_" }
 
@@ -60,7 +59,7 @@ $nuitkaArgs = @(
     "--remove-output",
     "--company-name=EriAmo",
     "--product-name=Lore Editor",
-    "--file-description=Lore Editor — edytor lore dla pisarzy",
+    "--file-description=Lore Editor - edytor lore dla pisarzy",
     "--file-version=$FileVersion",
     "--product-version=$FileVersion",
     "--copyright=MIT",
@@ -68,11 +67,10 @@ $nuitkaArgs = @(
 ) + $iconArgs + $include + @($Entry)
 
 if ($OneFile) {
-    # Onefile: ten sam zestaw flag, inny tryb
     $nuitkaArgs = @("-m", "nuitka", "--onefile") + $nuitkaArgs[2..($nuitkaArgs.Length - 1)]
 }
 
-Write-Host "Nuitka start — może potrwać 5–20 min..."
+Write-Host "Nuitka start - moze potrwac 5-20 min..."
 Push-Location $RepoRoot
 try {
     & python @nuitkaArgs
@@ -89,14 +87,13 @@ if (-not $exe -and (Test-Path $DistFolder)) {
 
 if ($exe) {
     $mb = [math]::Round($exe.Length / 1MB, 1)
-    Write-Host "EXE: $($exe.FullName) ($mb MB)" -ForegroundColor Green
+    Write-Host ("EXE: {0} ({1} MB)" -f $exe.FullName, $mb) -ForegroundColor Green
 } elseif (Test-Path $DistFolder) {
     Write-Host "Folder: $DistFolder" -ForegroundColor Green
 } else {
     throw "Brak wyniku w $Dist"
 }
 
-# ZIP do dystrybucji (cały folder .dist — wymagany przy --standalone)
 if (-not $SkipZip -and -not $OneFile -and (Test-Path $DistFolder)) {
     $ZipName = "LoreEditor-$Version-win64.zip"
     $ZipPath = Join-Path $Dist $ZipName
@@ -104,11 +101,11 @@ if (-not $SkipZip -and -not $OneFile -and (Test-Path $DistFolder)) {
     Write-Host "Pakowanie $ZipName ..."
     Compress-Archive -Path (Join-Path $DistFolder "*") -DestinationPath $ZipPath -CompressionLevel Optimal
     $zmb = [math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
-    Write-Host "ZIP: $ZipPath ($zmb MB)" -ForegroundColor Green
+    Write-Host ("ZIP: {0} ({1} MB)" -f $ZipPath, $zmb) -ForegroundColor Green
     Write-Host ""
     Write-Host "Dla pisarza (bez Pythona):" -ForegroundColor Cyan
-    Write-Host "  1. Rozpakuj ZIP albo: .\\scripts\\install_standalone.ps1"
-    Write-Host "  2. Skrót pulpitu → exe (powieść w %USERPROFILE%\\dokumenty\\lore)"
+    Write-Host "  1. Rozpakuj ZIP albo: .\scripts\install_standalone.ps1"
+    Write-Host "  2. Skrot pulpitu -> exe (powiesc w %USERPROFILE%\dokumenty\lore)"
 }
 
 if ($Install) {
