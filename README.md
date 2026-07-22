@@ -23,7 +23,9 @@ Zależności obejmują m.in.:
 | `python-docx` | Eksport rękopisu do Worda |
 | `spylls` | Silnik hunspell (korekta pisowni + słownik SJP.PL) |
 
-Windows — skrót na pulpicie i pakiet:
+**Pisarz (samodzielna aplikacja, bez Pythona):** zobacz [Samodzielna aplikacja](#samodzielna-aplikacja-windows-bez-pythona).
+
+**Dev (Python + skrót):**
 
 ```powershell
 .\scripts\install_writer.ps1 -Project MojaPowiesc
@@ -374,15 +376,50 @@ Snapshot obejmuje `.kafd` i wszystkie rozdziały. Przed przywróceniem bieżący
 
 Wymaga trybu lokalnego i **cynober-server** (protokół Karmazyn / Cynober replicate — nie zwykły transfer plików). Przyciski: Wyślij / Pobierz / Synchronizuj. Zobacz też **Pomoc → Sieć: Karmazyn i Cynober DB**.
 
-## Pakiet exe (Nuitka)
+## Samodzielna aplikacja (Windows, bez Pythona)
+
+Dla pisarza docelowy sposób to **exe** — pliki wynikowe (`.kafd`, rozdziały, historia) lądują w `dokumenty\lore`, **nie** w folderze instalacji.
+
+### 1. Zbuduj (na maszynie deweloperskiej)
 
 ```powershell
 .\scripts\build_nuitka.ps1
-# wynik: dist\run_lore_editor.dist\run_lore_editor.exe
+# wynik:
+#   dist\run_lore_editor.dist\run_lore_editor.exe
+#   dist\LoreEditor-<wersja>-win64.zip
 ```
 
-Skopiuj **cały folder** `run_lore_editor.dist` do katalogu projektu lub uruchamiaj exe z folderu z `.lore-project`.  
-Pierwszy build Nuitka trwa długo (~5–15 min); paczka ma ~25–80 MB.
+Pierwszy build Nuitka: ~5–20 min; folder ~80 MB.
+
+### 2. Zainstaluj u pisarza
+
+```powershell
+.\scripts\install_standalone.ps1
+# → %LOCALAPPDATA%\LoreEditor\
+# → skrót „Lore Editor” na pulpicie i w menu Start
+# → domyślna powieść: %USERPROFILE%\dokumenty\lore
+```
+
+Albo rozpakuj `LoreEditor-*-win64.zip` w dowolne miejsce i uruchom `run_lore_editor.exe`  
+(katalog pracy i tak będzie `~\dokumenty\lore`, o ile nie podasz `--project-dir`).
+
+### 3. Uruchomienie
+
+| Jak | Co się dzieje |
+|-----|----------------|
+| Skrót pulpitu | exe + `--project-dir …\dokumenty\lore` |
+| Sam exe | to samo (domyślny katalog w trybie frozen) |
+| `run_lore_editor.exe --project-dir D:\Saga` | inna powieść |
+
+**Nie** kopiuj `.kafd` / rozdziałów do folderu z exe — to katalog aplikacji, nie projektu.
+
+### Instalacja z Pythona (dev)
+
+```powershell
+.\scripts\install_writer.ps1 -Project MojaPowiesc
+```
+
+Wymaga Pythona i `pip install -e .` — do pracy nad kodem, nie dla końcowego pisarza.
 
 ## Testy
 

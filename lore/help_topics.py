@@ -444,12 +444,17 @@ Tryb offline-first — bez serwera, bez Lua.
 Sieć (opcjonalnie): protokół Karmazyn + cynober-server (--rpc). Patrz temat
 „Sieć: Karmazyn i Cynober DB”.
 
-Instalacja:
+Instalacja (pisarz — bez Pythona):
+  1. .\\scripts\\build_nuitka.ps1   (na maszynie deweloperskiej)
+  2. .\\scripts\\install_standalone.ps1
+     → %LOCALAPPDATA%\\LoreEditor + skrót „Lore Editor”
+  Powieść: %USERPROFILE%\\dokumenty\\lore (nie folder instalacji)
+
+Instalacja (dev — z Pythonem):
   pip install "cynober-db>=8.0.1"
   pip install -e .
   lore-editor
-
-Pakiet exe: .\\scripts\\build_nuitka.ps1
+  albo: .\\scripts\\install_writer.ps1
 
 Licencja kodu: MIT
 

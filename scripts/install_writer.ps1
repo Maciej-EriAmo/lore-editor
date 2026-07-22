@@ -1,4 +1,5 @@
-# Instalator Lore Editor dla pisarza — Cynober + skrót pulpitu
+# Instalator DEV (wymaga Pythona) — pip -e + skrót do run_lore_editor.py
+# Dla pisarza bez Pythona: .\scripts\build_nuitka.ps1  potem  .\scripts\install_standalone.ps1
 param(
     [string]$Project = "MojaPowiesc",
     # Docelowy folder powieści; domyślnie: <rodzic_repo>\dokumenty\lore

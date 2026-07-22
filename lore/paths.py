@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -19,9 +20,47 @@ DEFAULT_WORK_DIR_REL = Path("dokumenty") / "lore"
 ENV_PROJECT_DIR = "LORE_PROJECT_DIR"
 ENV_DEFAULT_WORK_DIR = "LORE_DEFAULT_WORK_DIR"
 
+# Nazwy exe z buildu Nuitka / instalatora standalone
+_APP_EXE_NAMES = frozenset(
+    {
+        "run_lore_editor.exe",
+        "lore_editor.exe",
+        "lore-editor.exe",
+        "loreeditor.exe",
+    }
+)
+
 # Sesja: ostatni katalog + ostatni plik (GUI / start aplikacji)
 SETTINGS_DIR = Path.home() / ".lore_editor"
 LAST_WORK_DIR_FILE = SETTINGS_DIR / "last_work_dir.json"
+
+
+def is_frozen_app() -> bool:
+    """True, gdy działa skompilowany standalone (Nuitka / PyInstaller), nie zwykły python."""
+    if getattr(sys, "frozen", False):
+        return True
+    # Nuitka wstrzykuje __compiled__ do skompilowanych modułów
+    if "__compiled__" in globals():
+        return True
+    exe = Path(sys.executable).resolve()
+    name = exe.name.lower()
+    if name in ("python.exe", "pythonw.exe", "python", "python3"):
+        return False
+    if name in _APP_EXE_NAMES or name.startswith("run_lore_editor"):
+        return True
+    return False
+
+
+def app_install_root() -> Path:
+    """
+    Folder instalacji aplikacji (exe + DLL) albo korzeń checkoutu repo.
+
+    W trybie standalone Nuitka: katalog z run_lore_editor.exe.
+    W dev: katalog z pyproject.toml / run_lore_editor.py.
+    """
+    if is_frozen_app():
+        return Path(sys.executable).resolve().parent
+    return _repo_or_package_root()
 
 
 def _repo_or_package_root() -> Path:
@@ -35,12 +74,36 @@ def _repo_or_package_root() -> Path:
 
 def is_app_source_root(path: Path) -> bool:
     """True, gdy folder to checkout/instalacja kodu lore-editor (nie folder powieści)."""
-    p = path.resolve()
-    return (
+    try:
+        p = path.resolve()
+    except (OSError, ValueError):
+        return False
+    if not p.is_dir():
+        return False
+    # Checkout deweloperski
+    if (
         (p / "run_lore_editor.py").is_file()
         and (p / "lore").is_dir()
         and ((p / "pyproject.toml").is_file() or (p / "lore" / "__init__.py").is_file())
-    )
+    ):
+        return True
+    # Paczka Nuitka / instalacja standalone (exe + python DLL)
+    try:
+        has_exe = any((p / name).is_file() for name in _APP_EXE_NAMES) or any(
+            f.is_file()
+            and f.name.lower().startswith("run_lore_editor")
+            and f.suffix.lower() == ".exe"
+            for f in p.iterdir()
+        )
+    except OSError:
+        return False
+    if has_exe and (
+        any(p.glob("python*.dll"))
+        or (p / "python3.dll").is_file()
+        or (p / "_tkinter.pyd").is_file()
+    ):
+        return True
+    return False
 
 
 def default_work_dir(*, cwd: Path | None = None) -> Path:
@@ -49,8 +112,9 @@ def default_work_dir(*, cwd: Path | None = None) -> Path:
 
     Kolejność:
     1. LORE_DEFAULT_WORK_DIR (absolutna lub względna względem cwd)
-    2. ../dokumenty/lore względem korzenia repo (sibling: <rodzic_repo>/dokumenty/lore)
-    3. ~/dokumenty/lore (gdy pakiet zainstalowany bez drzewa repo)
+    2. standalone (exe): ~/dokumenty/lore
+    3. checkout repo: ../dokumenty/lore względem korzenia repo
+    4. inaczej: ~/dokumenty/lore
     """
     env = os.environ.get(ENV_DEFAULT_WORK_DIR, "").strip()
     if env:
@@ -61,6 +125,10 @@ def default_work_dir(*, cwd: Path | None = None) -> Path:
         else:
             p = p.resolve()
         return p
+
+    # Skompilowana aplikacja: powieść zawsze poza folderem instalacji
+    if is_frozen_app():
+        return (Path.home() / DEFAULT_WORK_DIR_REL).resolve()
 
     repo = _repo_or_package_root()
     # Edytowalny checkout: lore-editor/ → ../dokumenty/lore

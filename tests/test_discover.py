@@ -182,6 +182,19 @@ class TestDiscover(unittest.TestCase):
                 self.assertNotEqual(p.root, fake_app.resolve())
                 self.assertEqual(p.root, default_work_dir(cwd=fake_app))
 
+    def test_standalone_dist_is_app_root(self):
+        """Folder Nuitka (exe + python*.dll) nie jest folderem powieści."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp) / "run_lore_editor.dist"
+            dist.mkdir()
+            (dist / "run_lore_editor.exe").write_bytes(b"MZ")
+            (dist / "python314.dll").write_bytes(b"")
+            (dist / LORE_PROJECT_FILE).write_text("name=oops\n", encoding="utf-8")
+            self.assertTrue(is_app_source_root(dist))
+            with mock_last_work_file(Path(tmp) / "last.json"):
+                p = ProjectPaths.discover(cwd=dist)
+                self.assertNotEqual(p.root, dist.resolve())
+
 
 class _LastWorkCtx:
     def __init__(self, path: Path) -> None:
