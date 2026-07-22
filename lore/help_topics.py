@@ -37,7 +37,13 @@ W PROGRAMIE (GUI)
   Plik → Katalog projektu… (Ctrl+Shift+O) — wybierz folder powieści
   Plik → Domyślny katalog (dokumenty/lore)
   Pasek narzędzi: „Katalog…” · klik w ścieżkę na pasku statusu
-  Wybór zapamiętuje się w %USERPROFILE%\\.lore_editor\\last_work_dir.json
+
+SESJA (automatycznie)
+  Przy starcie: ostatni katalog pracy + ostatni plik rozdziału
+  (jeśli plik nadal istnieje). Zapis: otwarcie / zapis / zmiana karty.
+  Plik sesji: %USERPROFILE%\\.lore_editor\\last_work_dir.json
+  (pola path + last_file). Marker .lore-project w folderze kodu
+  lore-editor jest ignorowany — nie zastępuje katalogu powieści.
 
 PIERWSZE URUCHOMIENIE
 W katalogu pracy powstaje .lore-project i .lore-history/ (snapshoty).

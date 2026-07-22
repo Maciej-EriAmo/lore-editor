@@ -11,7 +11,10 @@ from lore.paths import (
     LORE_PROJECT_FILE,
     ProjectPaths,
     default_work_dir,
+    is_app_source_root,
+    load_last_file,
     load_last_work_dir,
+    save_last_file,
     save_last_work_dir,
 )
 
@@ -130,6 +133,54 @@ class TestDiscover(unittest.TestCase):
                 work.mkdir()
                 p = ProjectPaths.discover(cwd=work)
                 self.assertEqual(p.root, gui_dir.resolve())
+
+    def test_last_file_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "powiesc"
+            root.mkdir()
+            chapter = root / "rozdzial_01.txt"
+            chapter.write_text("Ala ma kota\n", encoding="utf-8")
+            with mock_last_work_file(Path(tmp) / "last.json"):
+                save_last_work_dir(root)
+                self.assertIsNone(load_last_file())
+                save_last_file(chapter, project_dir=root)
+                self.assertEqual(load_last_work_dir(), root.resolve())
+                self.assertEqual(load_last_file(), chapter.resolve())
+                # nieistniejący plik → None
+                import json
+
+                gone = root / "brak.txt"
+                data_path = Path(tmp) / "last.json"
+                data_path.write_text(
+                    json.dumps(
+                        {"path": str(root), "last_file": str(gone), "version": 2},
+                        ensure_ascii=False,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                self.assertIsNone(load_last_file())
+
+    def test_skip_app_source_marker(self):
+        """Marker w katalogu kodu lore-editor nie blokuje dokumenty/lore."""
+        # is_app_source_root na prawdziwym repo
+        repo = Path(__file__).resolve().parents[1]
+        if is_app_source_root(repo):
+            self.assertTrue(is_app_source_root(repo))
+        with tempfile.TemporaryDirectory() as tmp:
+            # symulacja: cwd z markerem „aplikacji” nie da się łatwo — test helpera
+            fake_app = Path(tmp) / "lore-editor"
+            fake_app.mkdir()
+            (fake_app / "run_lore_editor.py").write_text("#\n", encoding="utf-8")
+            (fake_app / "lore").mkdir()
+            (fake_app / "lore" / "__init__.py").write_text("", encoding="utf-8")
+            (fake_app / LORE_PROJECT_FILE).write_text("name=lore-editor\n", encoding="utf-8")
+            self.assertTrue(is_app_source_root(fake_app))
+            with mock_last_work_file(Path(tmp) / "last.json"):
+                # bez last → default
+                p = ProjectPaths.discover(cwd=fake_app)
+                self.assertNotEqual(p.root, fake_app.resolve())
+                self.assertEqual(p.root, default_work_dir(cwd=fake_app))
 
 
 class _LastWorkCtx:

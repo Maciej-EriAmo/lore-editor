@@ -54,12 +54,15 @@ def _run_standalone(
 ) -> None:
     from lore.editor_window import run_editor_window
 
+    from lore.paths import save_last_work_dir
+
     lore = _open_lore(project, project_dir, rpc, host, port, profile)
     # Dialogi „Otwórz…” i względne ścieżki plików — w katalogu projektu
     try:
         os.chdir(lore.katalog_projektu())
     except OSError:
         pass
+    save_last_work_dir(lore.katalog_projektu())
     try:
         run_editor_window(lore, initial_files=initial_files)
     finally:

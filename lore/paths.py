@@ -19,7 +19,7 @@ DEFAULT_WORK_DIR_REL = Path("dokumenty") / "lore"
 ENV_PROJECT_DIR = "LORE_PROJECT_DIR"
 ENV_DEFAULT_WORK_DIR = "LORE_DEFAULT_WORK_DIR"
 
-# Ostatni katalog wybrany w GUI (Plik → Katalog projektu…)
+# Sesja: ostatni katalog + ostatni plik (GUI / start aplikacji)
 SETTINGS_DIR = Path.home() / ".lore_editor"
 LAST_WORK_DIR_FILE = SETTINGS_DIR / "last_work_dir.json"
 
@@ -31,6 +31,16 @@ def _repo_or_package_root() -> Path:
     if (parent / "pyproject.toml").is_file() or (parent / "run_lore_editor.py").is_file():
         return parent
     return parent
+
+
+def is_app_source_root(path: Path) -> bool:
+    """True, gdy folder to checkout/instalacja kodu lore-editor (nie folder powieści)."""
+    p = path.resolve()
+    return (
+        (p / "run_lore_editor.py").is_file()
+        and (p / "lore").is_dir()
+        and ((p / "pyproject.toml").is_file() or (p / "lore" / "__init__.py").is_file())
+    )
 
 
 def default_work_dir(*, cwd: Path | None = None) -> Path:
@@ -60,34 +70,81 @@ def default_work_dir(*, cwd: Path | None = None) -> Path:
     return (Path.home() / DEFAULT_WORK_DIR_REL).resolve()
 
 
-def load_last_work_dir() -> Optional[Path]:
-    """Ostatni katalog pracy zapisany z GUI (jeśli istnieje)."""
+def _read_session() -> dict:
     if not LAST_WORK_DIR_FILE.is_file():
-        return None
+        return {}
     try:
         import json
 
         data = json.loads(LAST_WORK_DIR_FILE.read_text(encoding="utf-8"))
-        raw = (data.get("path") or "").strip()
-        if not raw:
-            return None
-        p = Path(raw).expanduser().resolve()
-        return p
+        return data if isinstance(data, dict) else {}
     except (OSError, ValueError, TypeError):
+        return {}
+
+
+def _write_session(data: dict) -> None:
+    import json
+
+    SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+    payload = dict(data)
+    payload["version"] = max(2, int(payload.get("version") or 2))
+    LAST_WORK_DIR_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def load_last_work_dir() -> Optional[Path]:
+    """Ostatni katalog pracy zapisany z GUI / sesji (jeśli istnieje)."""
+    raw = (_read_session().get("path") or "").strip()
+    if not raw:
+        return None
+    try:
+        return Path(raw).expanduser().resolve()
+    except (OSError, ValueError):
         return None
 
 
-def save_last_work_dir(path: str | Path) -> Path:
-    """Zapisz katalog pracy wybrany w GUI (następne uruchomienia)."""
-    import json
+def load_last_file() -> Optional[Path]:
+    """Ostatni otwarty plik rozdziału (absolutna ścieżka), jeśli nadal istnieje."""
+    raw = (_read_session().get("last_file") or "").strip()
+    if not raw:
+        return None
+    try:
+        p = Path(raw).expanduser().resolve()
+    except (OSError, ValueError):
+        return None
+    return p if p.is_file() else None
 
+
+def save_last_work_dir(path: str | Path, *, last_file: str | Path | None = None) -> Path:
+    """Zapisz katalog pracy (i opcjonalnie last_file bez kasowania poprzedniego)."""
     root = Path(path).expanduser().resolve()
-    SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-    LAST_WORK_DIR_FILE.write_text(
-        json.dumps({"path": str(root), "version": 1}, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    data = _read_session()
+    data["path"] = str(root)
+    if last_file is not None:
+        fp = Path(last_file).expanduser().resolve()
+        data["last_file"] = str(fp)
+    _write_session(data)
     return root
+
+
+def save_last_file(path: str | Path, *, project_dir: str | Path | None = None) -> Optional[Path]:
+    """Zapisz ostatni plik + katalog projektu (do przywrócenia przy starcie)."""
+    try:
+        fp = Path(path).expanduser().resolve()
+    except (OSError, ValueError):
+        return None
+    if not fp.is_file():
+        return None
+    data = _read_session()
+    data["last_file"] = str(fp)
+    if project_dir is not None:
+        data["path"] = str(Path(project_dir).expanduser().resolve())
+    elif not data.get("path"):
+        data["path"] = str(fp.parent)
+    _write_session(data)
+    return fp
 
 
 @dataclass(frozen=True)
@@ -128,13 +185,16 @@ class ProjectPaths:
             return cls._open(name, root)
 
         marker_root = cls._find_marker_root(work)
+        # Marker w checkoutcie lore-editor nie jest folderem powieści — pomiń
+        if marker_root is not None and is_app_source_root(marker_root):
+            marker_root = None
         if marker_root is not None:
             file_name = cls._read_marker_name(marker_root / LORE_PROJECT_FILE)
             name = cli_name or file_name or cls._name_from_folder(marker_root)
             return cls._open(name, marker_root)
 
         last = load_last_work_dir()
-        if last is not None:
+        if last is not None and not is_app_source_root(last):
             name = cli_name or cls._name_from_folder(last)
             return cls._open(name, last)
 

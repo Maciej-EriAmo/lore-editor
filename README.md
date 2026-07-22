@@ -55,6 +55,8 @@ Opcjonalne czcionki (Lexend, OpenDyslexic):
 | Wróć do `dokumenty/lore` | **Plik → Domyślny katalog (dokumenty/lore)** |
 | Szybki klik | ścieżka projektu na **pasku statusu** (prawo) |
 
+**Sesja:** przy starcie otwierany jest ostatni katalog pracy i **ostatni plik** rozdziału (jeśli nadal istnieje). Zapamiętywane przy otwarciu/zapisie/zmianie karty w `~/.lore_editor/last_work_dir.json`. Marker `.lore-project` w folderze kodu `lore-editor` jest pomijany.
+
 **Opcja A — domyślny folder (zalecane przy starcie ze skrótu / z repo):**
 
 ```powershell

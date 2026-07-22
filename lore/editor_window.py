@@ -12,7 +12,12 @@ from typing import Optional
 from lore.dictionary_view import open_name_dictionary, open_spellcheck
 from lore.document_hooks import on_file_opened, on_file_saved
 from lore.panel import LorePanel
-from lore.paths import default_work_dir, save_last_work_dir
+from lore.paths import (
+    default_work_dir,
+    load_last_file,
+    save_last_file,
+    save_last_work_dir,
+)
 from lore.store import LoreStore
 from lore.text_io import read_text_smart, write_text_atomic
 from lore.theme import apply_theme, style_text
@@ -83,14 +88,36 @@ class EditorWindow:
         self._schedule_autosave()
 
         files = [f for f in (initial_files or []) if f and Path(f).is_file()]
+        if not files:
+            # Przywróć ostatni plik z sesji (w katalogu projektu lub absolutny)
+            restored = self._resolve_session_file()
+            if restored is not None:
+                files = [str(restored)]
         if files:
             for path in files:
                 self._open_path(path)
         else:
             self._new_tab()
+        # Zapamiętaj katalog od razu przy starcie
+        save_last_work_dir(self._proj_root)
 
     def run(self) -> None:
         self.root.mainloop()
+
+    def _resolve_session_file(self) -> Optional[Path]:
+        """Ostatni plik z sesji, jeśli nadal istnieje (preferuj w katalogu projektu)."""
+        last = load_last_file()
+        if last is None:
+            return None
+        try:
+            last.relative_to(self._proj_root.resolve())
+            return last
+        except ValueError:
+            # plik spoza bieżącego projektu — otwórz tylko jeśli istnieje
+            return last if last.is_file() else None
+
+    def _remember_file(self, path: str | Path) -> None:
+        save_last_file(path, project_dir=self._proj_root)
 
     def _current_tab(self) -> Optional[_TabState]:
         try:
@@ -425,6 +452,7 @@ class EditorWindow:
         self._update_status()
         if tab and tab.path:
             on_file_opened(self._lore, tab.path, self._panel)
+            self._remember_file(tab.path)
 
     def _open_dialog(self) -> None:
         paths = filedialog.askopenfilenames(
@@ -451,6 +479,7 @@ class EditorWindow:
         tab_id = self._create_tab(content, path=path, encoding=enc)
         on_file_opened(self._lore, path, self._panel)
         self._update_tab_title(tab_id)
+        self._remember_file(path)
 
     def _save_tab(self, tab: _TabState, *, save_as: bool = False) -> bool:
         path = tab.path
@@ -491,6 +520,8 @@ class EditorWindow:
             self._update_tab_title(tab_id)
         self._update_window_title()
         self._update_status()
+        if tab.path:
+            self._remember_file(tab.path)
         return True
 
     def _tab_id_for(self, tab: _TabState) -> Optional[str]:
@@ -875,7 +906,20 @@ class EditorWindow:
             self._notebook.forget(tab_id)
             tab.frame.destroy()
             del self._tabs[tab_id]
-        self._new_tab()
+
+        restored = self._resolve_session_file()
+        opened = False
+        if restored is not None and restored.is_file():
+            try:
+                restored.resolve().relative_to(self._proj_root.resolve())
+            except ValueError:
+                restored = None
+            if restored is not None:
+                self._open_path(str(restored))
+                opened = True
+        if not opened:
+            self._new_tab()
+
         self._update_window_title()
         self._update_status()
         self._status_var.set(f"Katalog projektu: {self._proj_root}")
