@@ -23,7 +23,15 @@ $FileVersion = if ($Version -match '^\d+\.\d+\.\d+') { "$Version.0" } else { "0.
 
 Write-Host "=== Lore Editor $Version - Nuitka standalone ===" -ForegroundColor Cyan
 
-python -m pip install --upgrade "nuitka" "ordered-set" "zstandard" "cynober-db>=8.0.1" "python-docx>=1.1.0" "spylls>=0.1.7" 2>&1 | Out-Null
+# pip pisze ostrzezenia na stderr - nie przerywaj buildu
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+python -m pip install --upgrade "nuitka" "ordered-set" "zstandard" "cynober-db>=8.0.1" "python-docx>=1.1.0" "spylls>=0.1.7"
+if ($LASTEXITCODE -ne 0) {
+    $ErrorActionPreference = $prevEap
+    throw "pip install failed: $LASTEXITCODE"
+}
+$ErrorActionPreference = $prevEap
 
 $modules = @(
     "cynober_worlds", "cynober_world_shards", "cynober_auto_flush",
