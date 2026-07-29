@@ -4,9 +4,14 @@ import unittest
 
 from lore import __version__
 from lore.help_topics import DEFAULT_TOPIC, get_topic, topic_titles
+from lore.i18n import discover_and_load, set_locale
 
 
 class TestHelpTopics(unittest.TestCase):
+    def setUp(self) -> None:
+        discover_and_load(force=True)
+        set_locale("pl", persist=False)
+
     def test_has_core_topics(self):
         titles = topic_titles()
         for name in (
@@ -37,6 +42,14 @@ class TestHelpTopics(unittest.TestCase):
     def test_unknown_topic_falls_back(self):
         title, body = get_topic("nie istnieje")
         self.assertEqual(title, DEFAULT_TOPIC)
+
+    def test_english_help_titles(self):
+        set_locale("en", persist=False)
+        titles = topic_titles()
+        self.assertIn("Writer's guide", titles)
+        title, body = get_topic("Writer's guide")
+        self.assertEqual(title, "Writer's guide")
+        self.assertGreater(len(body), 20)
 
 
 if __name__ == "__main__":

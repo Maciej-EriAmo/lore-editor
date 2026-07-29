@@ -28,6 +28,7 @@ SPELLING_FILE = ".lore-spelling.json"
 _DATA_DIR = Path(__file__).resolve().parent / "data"
 _DATA_GZ = _DATA_DIR / "pl_common.txt.gz"
 _SJP_BASE = _DATA_DIR / "sjp" / "pl_PL"  # bez rozszerzenia (.aff / .dic)
+_EN_HUNSPELL_BASE = _DATA_DIR / "en_US" / "en_US"  # opcjonalny en_US.aff/.dic
 
 # Minimalny zestaw zawsze znany (gdy brak pliku data/)
 _BOOTSTRAP: frozenset[str] = frozenset(
@@ -42,6 +43,18 @@ _BOOTSTRAP: frozenset[str] = frozenset(
     raz dwa trzy cztery pięć sześć siedem osiem dziewięć dziesięć
     dzień nocy roku roku lat wieku miejsca domu miasta drogi czasu
     bardzo bardzo dobrze źle bardziej mniej więcej
+    """.split()
+)
+
+_BOOTSTRAP_EN: frozenset[str] = frozenset(
+    """
+    a an the and or but if then else when while for of to in on at by with from
+    is are was were be been being have has had do does did will would can could
+    should may might must shall not no yes this that these those i you he she it
+    we they me him her us them my your his its our their who what which where when
+    why how all any some more most other such only own same so than too very just
+    also about into over after before between under again further once here there
+    up down out off above below chapter scene character place story book novel
     """.split()
 )
 
@@ -82,14 +95,14 @@ def load_common_polish() -> frozenset[str]:
     return frozenset(words)
 
 
-@lru_cache(maxsize=1)
-def load_sjp_dictionary() -> Any | None:
+def _load_hunspell(base: Path) -> Any | None:
     """
-    Załaduj słownik SJP.PL (hunspell) przez spylls.
-    Zwraca Dictionary albo None, gdy brak plików / pakietu.
+    Załaduj hunspell przez spylls.
+    Spylls 0.1.x zostawia otwarte uchwyty plików (ResourceWarning) —
+    ładujemy raz (lru_cache wyżej) i nie otwieramy ponownie w pętli.
     """
-    aff = Path(str(_SJP_BASE) + ".aff")
-    dic = Path(str(_SJP_BASE) + ".dic")
+    aff = Path(str(base) + ".aff")
+    dic = Path(str(base) + ".dic")
     if not aff.is_file() or not dic.is_file():
         return None
     try:
@@ -97,9 +110,28 @@ def load_sjp_dictionary() -> Any | None:
     except ImportError:
         return None
     try:
-        return Dictionary.from_files(str(_SJP_BASE))
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+            return Dictionary.from_files(str(base))
     except Exception:
         return None
+
+
+@lru_cache(maxsize=1)
+def load_sjp_dictionary() -> Any | None:
+    """
+    Załaduj słownik SJP.PL (hunspell) przez spylls.
+    Zwraca Dictionary albo None, gdy brak plików / pakietu.
+    """
+    return _load_hunspell(_SJP_BASE)
+
+
+@lru_cache(maxsize=1)
+def load_en_dictionary() -> Any | None:
+    """Opcjonalny hunspell en_US w lore/data/en_US/en_US.{aff,dic}."""
+    return _load_hunspell(_EN_HUNSPELL_BASE)
 
 
 def sjp_available() -> bool:
@@ -107,11 +139,18 @@ def sjp_available() -> bool:
     return load_sjp_dictionary() is not None
 
 
-def backend_label() -> str:
+def backend_label(lang: str | None = None) -> str:
     """Krótki opis aktywnego silnika (status / UI)."""
-    if sjp_available():
-        return "SJP.PL (hunspell) + lore"
-    return "lista częstych PL + lore"
+    code = (lang or "pl").strip().lower()
+    if code in ("en", "en_us", "en-us"):
+        if load_en_dictionary() is not None:
+            return "en_US (hunspell) + lore"
+        return "common EN + lore"
+    if code == "pl":
+        if sjp_available():
+            return "SJP.PL (hunspell) + lore"
+        return "lista częstych PL + lore"
+    return f"lore + project dict ({code})"
 
 
 def _edits1(word: str) -> set[str]:
@@ -222,7 +261,7 @@ class ProjectSpellingDict:
 
 class SpellChecker:
     """
-    Korektor offline: SJP.PL (gdy dostępny) + lore + słownik projektu + sesja.
+    Korektor offline: hunspell (pl/en gdy dostępny) + lore + słownik projektu + sesja.
     """
 
     def __init__(
@@ -230,9 +269,34 @@ class SpellChecker:
         *,
         project_root: Path | None = None,
         lore_names: Optional[Sequence[str]] = None,
+        lang: str | None = None,
     ) -> None:
-        self._sjp = load_sjp_dictionary()
-        self._common = load_common_polish() if self._sjp is None else frozenset(_BOOTSTRAP)
+        if lang is None:
+            try:
+                from lore.i18n.core import active_spell_code
+
+                lang = active_spell_code()
+            except Exception:
+                lang = "pl"
+        self.lang = (lang or "pl").strip().lower()
+        self._hunspell: Any | None = None
+        self._common: frozenset[str]
+        if self.lang in ("en", "en_us", "en-us"):
+            self._hunspell = load_en_dictionary()
+            self._common = (
+                frozenset(_BOOTSTRAP_EN) if self._hunspell is None else frozenset(_BOOTSTRAP_EN)
+            )
+        elif self.lang == "pl":
+            self._hunspell = load_sjp_dictionary()
+            self._common = (
+                load_common_polish() if self._hunspell is None else frozenset(_BOOTSTRAP)
+            )
+        else:
+            # tlh / ja / inne — tylko lore + projekt + bootstrap EN/PL mieszany minimalny
+            self._hunspell = None
+            self._common = frozenset(_BOOTSTRAP) | frozenset(_BOOTSTRAP_EN)
+        # kompatybilność ze starym atrybutem
+        self._sjp = self._hunspell if self.lang == "pl" else None
         self._project = ProjectSpellingDict(project_root) if project_root else None
         self._session_ignore: set[str] = set()
         self._lore_tokens: set[str] = set()
@@ -242,7 +306,11 @@ class SpellChecker:
 
     @property
     def uses_sjp(self) -> bool:
-        return self._sjp is not None
+        return self.lang == "pl" and self._hunspell is not None
+
+    @property
+    def uses_hunspell(self) -> bool:
+        return self._hunspell is not None
 
     def set_lore_names(self, names: Iterable[str]) -> None:
         self._lore_tokens = set()
@@ -269,16 +337,16 @@ class SpellChecker:
         pool |= self._session_ignore
         return pool
 
-    def _sjp_lookup(self, word: str) -> bool:
-        if self._sjp is None:
+    def _hunspell_lookup(self, word: str) -> bool:
+        if self._hunspell is None:
             return False
         try:
-            if self._sjp.lookup(word):
+            if self._hunspell.lookup(word):
                 return True
             # warianty wielkości liter (początek zdania)
-            if word[:1].isupper() and self._sjp.lookup(word[:1].lower() + word[1:]):
+            if word[:1].isupper() and self._hunspell.lookup(word[:1].lower() + word[1:]):
                 return True
-            if self._sjp.lookup(word.casefold()):
+            if self._hunspell.lookup(word.casefold()):
                 return True
         except Exception:
             return False
@@ -301,8 +369,8 @@ class SpellChecker:
         # Akronimy typu ABC / FBI
         if word.isupper() and 2 <= len(word) <= 6:
             return True
-        if self._sjp is not None:
-            return self._sjp_lookup(word)
+        if self._hunspell is not None:
+            return self._hunspell_lookup(word)
         return w in self._common
 
     def unknown_spans(self, text: str) -> list[WordSpan]:
@@ -316,18 +384,18 @@ class SpellChecker:
             or word.casefold() in key
         ][:3]
 
-        sjp_hits: list[str] = []
-        if self._sjp is not None:
+        hs_hits: list[str] = []
+        if self._hunspell is not None:
             try:
-                sjp_hits = list(self._sjp.suggest(word))[:limit]
+                hs_hits = list(self._hunspell.suggest(word))[:limit]
             except Exception:
-                sjp_hits = []
+                hs_hits = []
 
         base = suggest_from_known(word, self.known_pool(), limit=limit)
 
         out: list[str] = []
         seen: set[str] = set()
-        for item in lore_hits + sjp_hits + base:
+        for item in lore_hits + hs_hits + base:
             k = item.casefold()
             if k in seen or k == word.casefold():
                 continue

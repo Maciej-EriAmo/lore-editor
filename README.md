@@ -123,14 +123,40 @@ MojaPowiesc/
 
 - **Edycja → Słownik nazw…** (`Ctrl+Shift+D`) — podgląd postaci/miejsc z lore, wstawianie nazwy do tekstu.
 - **Edycja → Sprawdź pisownię…** (`F7`) — korekta offline:
-  - **SJP.PL** (słownik hunspell, m.in. Apache 2.0 — [sjp.pl/slownik/ort](https://sjp.pl/slownik/ort/)), silnik [spylls](https://pypi.org/project/spylls/)
-  - nazwy z lore + `.lore-spelling.json` w projekcie
+  - **PL:** **SJP.PL** (hunspell, m.in. Apache 2.0 — [sjp.pl/slownik/ort](https://sjp.pl/slownik/ort/)), silnik [spylls](https://pypi.org/project/spylls/)
+  - **EN:** hunspell `en_US` (jeśli w `lore/data/en_US/`) albo lista częstych słów EN
+  - nazwy z lore + `.lore-spelling.json` w projekcie (zawsze)
+  - inne locale (np. plugin `tlh`): lore + słownik projektu
 
-Atrybucja SJP: `lore/data/sjp/NOTICE.txt`. Szczegóły: **Pomoc → Słownik i pisownia**.
+Atrybucja SJP: `lore/data/sjp/NOTICE.txt`. Szczegóły: **Pomoc → Słownik i pisownia** oraz [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md).
 
 Stary format (`*.meta.json` + `shards/`) jest **automatycznie migrowany** przy zapisie do jednego `.kafd`.
 
 **Backup:** kopiuj cały folder projektu, w tym `.lore-history/` i opcjonalnie `.lore-spelling.json` — warstwa ratunkowa przy utracie rozdziału lub zepsuciu `.kafd`.
+
+## Język interfejsu (locale packs)
+
+UI (menu, toolbar, panel, status) jest w **paczkach językowych** — osobno od KarminQL i wartości w `.kafd`.
+
+| Źródło | Kod | Opis |
+|--------|-----|------|
+| Wbudowany | `pl` | Polski (domyślny) |
+| Wbudowany | `en` | English — `lore/locales/en/` |
+| Plugin (przykład) | `tlh` | Klingoński szablon — `plugins/locales/tlh/` |
+
+```powershell
+lore-editor --locale en
+lore-editor --locale tlh
+$env:LORE_LOCALE = "en"; lore-editor
+```
+
+- Menu **Język** w aplikacji (zapis w `~/.lore_editor/settings.json`)
+- Zmienna **`LORE_LOCALE`** ma pierwszeństwo przy starcie
+- Dodatkowe paczki: `LORE_LOCALE_PATHS` lub entry-point `lore_editor.locale`
+
+**Jak dodać własny język (np. japoński / klingoński):** [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md).
+
+> **Uwaga:** komendy KarminQL (`UTRWAL`, `ZNAJDŹ`) i typy w grafie (`Postać`, …) **nie** są tłumaczone — dzięki temu ten sam plik `.kafd` działa w PL i EN.
 
 ## Uruchomienie
 
@@ -139,6 +165,7 @@ lore-editor                              # domyślnie: ../dokumenty/lore (bez si
 lore-editor --project-dir D:\Pisanie\X   # wskazany katalog pracy
 lore-editor --file rozdzial_01.txt       # jeden plik
 lore-editor rozdzial_01.txt rozdzial_02.md   # kilka kart
+lore-editor --locale en                  # angielski UI
 lore-editor --rpc --host 192.168.1.10    # lore przez cynober-server (patrz niżej)
 ```
 
@@ -179,9 +206,15 @@ cynober-server          # nasłuch, domyślnie :8080
 
 # Na laptopie pisarza:
 lore-editor --rpc --host 192.168.1.10 --port 8080
+
+# Serwer z auth.json — podaj login (albo zmienne / profil):
+lore-editor --rpc --host 192.168.1.10 --rpc-user writer --rpc-token sekret
+# LORE_RPC_USER / LORE_RPC_TOKEN  albo  user+token w profilu ~/.karmazyn_client.json
 ```
 
-Profil połączenia (host, port, HSS) można też trzymać w `~/.karmazyn_client.json` — wtedy `cynober_client.connect(profile="nazwa")`.
+Profil połączenia (host, port, HSS, opcjonalnie `user`/`token`) — `~/.karmazyn_client.json` lub `cynober_client.connect(profile="nazwa")`.
+
+**Wymagania cynober-db:** zalecane **≥ 8.0.2** (poprawki ACL na `WYBIERZ ŚWIAT` i GOSSIP). Lokalnie: `pip install -e path/to/DBase`.
 
 ### Sync zespołu (zakładka Zespół)
 
@@ -205,16 +238,16 @@ Więcej: menu **Pomoc → Sieć: Karmazyn i Cynober DB** (F1).
 
 ## Pomoc w aplikacji
 
-Menu **Pomoc** (lub **F1**):
+Menu **Pomoc** (lub **F1**). Tytuły zależą od locale (PL / EN / plugin); poniżej nazwy PL:
 
 | Temat | Zawartość |
 |-------|-----------|
-| Przewodnik pisarza | Szybki start, zapis, historia |
+| Przewodnik pisarza | Szybki start, zapis, historia, język UI |
 | Skróty klawiszowe | Ctrl+S, Ctrl+W, Ctrl+F… |
 | Czcionki i wygląd | Presety szkic / druk / czytelność |
 | Wydruk i eksport | Podgląd stron, DOCX, scenariusz |
 | Panel Lore | Postacie, powiązania, sync |
-| Słownik i pisownia | Nazwy z lore, F7, SJP.PL |
+| Słownik i pisownia | Nazwy z lore, F7, SJP / EN |
 | Kontekst czasowy | Stany postaci per rozdział |
 | Zapytania semantyczne | Wyszukiwanie po grafie lore |
 | Historia zmian | Snapshoty, przywracanie projektu |
@@ -426,6 +459,14 @@ Wymaga Pythona i `pip install -e .` — do pracy nad kodem, nie dla końcowego p
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Dokumentacja w repo
+
+| Plik | Temat |
+|------|--------|
+| [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | Locale packs, EN, szablon klingoński, klucze `ui.json` |
+| [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md) | Słownik nazw, F7, SJP / EN |
+| [docs/KIERUNEK_MULTIMEDIA_STREAMING.md](docs/KIERUNEK_MULTIMEDIA_STREAMING.md) | Kierunek: multimedia / KAFS (plan) |
 
 ## Licencja
 

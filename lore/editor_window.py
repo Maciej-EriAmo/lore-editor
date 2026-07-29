@@ -11,6 +11,7 @@ from typing import Optional
 
 from lore.dictionary_view import open_name_dictionary, open_spellcheck
 from lore.document_hooks import on_file_opened, on_file_saved
+from lore.i18n import get_locale, list_locales, set_locale, t
 from lore.panel import LorePanel
 from lore.paths import (
     default_work_dir,
@@ -73,14 +74,15 @@ class EditorWindow:
         self._font_family_var = tk.StringVar(master=self.root, value=self._typography.preset_id)
         self._font_size_var = tk.IntVar(master=self.root, value=size)
         self._line_spacing_var = tk.DoubleVar(master=self.root, value=spacing)
-        self.root.title(f"Lore Editor — {self._proj}")
+        self.root.title(f"{t('app.name')} — {self._proj}")
         self.root.geometry("1150x720")
         self.root.minsize(900, 560)
         apply_theme(self.root)
 
-        self._status_var = tk.StringVar(value="Gotowy")
+        self._status_var = tk.StringVar(value=t("app.ready"))
         self._proj_label_var = tk.StringVar(value=f"  ·  {self._proj}")
         self._path_status_var = tk.StringVar(value=str(self._proj_root))
+        self._locale_var = tk.StringVar(master=self.root, value=get_locale())
         self._build_ui()
         self._build_menu()
         self._bind_shortcuts()
@@ -140,7 +142,7 @@ class EditorWindow:
             except ValueError:
                 label = Path(tab.path).name
         else:
-            label = "Bez tytułu"
+            label = t("app.untitled")
         return f"{label}*" if tab.dirty else label
 
     def _tab_label(self, tab: _TabState) -> str:
@@ -154,7 +156,7 @@ class EditorWindow:
 
     def _update_window_title(self) -> None:
         tab = self._current_tab()
-        base = f"Lore Editor — {self._proj}"
+        base = f"{t('app.name')} — {self._proj}"
         if tab and tab.path:
             name = Path(tab.path).name
             base += f" — {name}"
@@ -167,44 +169,50 @@ class EditorWindow:
     def _update_status(self) -> None:
         tab = self._current_tab()
         if tab is None:
-            self._status_var.set("Gotowy")
+            self._status_var.set(t("app.ready"))
             return
         content = tab.text.get("1.0", "end-1c")
         words = _word_count(content)
-        chars = len(content)
         enc = tab.encoding
+        dirty = f" · {t('app.unsaved')}" if tab.dirty else ""
+        words_lbl = t("app.words")
         if tab.path:
             try:
                 rel = Path(tab.path).resolve().relative_to(self._proj_root)
                 path_lbl = str(rel)
             except ValueError:
                 path_lbl = Path(tab.path).name
-            dirty = " · niezapisane" if tab.dirty else ""
             ms = paginate(content, profile_for_preset(self._typography.preset_id))
             self._status_var.set(
-                f"{path_lbl} · {words} słów · {ms.summary()} · {enc}{dirty}"
+                f"{path_lbl} · {words} {words_lbl} · {ms.summary()} · {enc}{dirty}"
             )
         else:
             ms = paginate(content, profile_for_preset(self._typography.preset_id))
             self._status_var.set(
-                f"Bez tytułu · {words} słów · {ms.summary()}"
-                f"{(' · niezapisane' if tab.dirty else '')}"
+                f"{t('app.untitled')} · {words} {words_lbl} · {ms.summary()}{dirty}"
             )
 
     def _build_ui(self) -> None:
         top = ttk.Frame(self.root, padding=(8, 6))
         top.pack(fill="x")
-        ttk.Label(top, text="Lore Editor", style="Head.TLabel").pack(side="left")
+        self._title_lbl = ttk.Label(top, text=t("app.name"), style="Head.TLabel")
+        self._title_lbl.pack(side="left")
         ttk.Label(top, textvariable=self._proj_label_var, style="Dim.TLabel").pack(side="left")
 
         toolbar = ttk.Frame(top)
         toolbar.pack(side="right")
-        ttk.Button(toolbar, text="Nowy", command=self._new_tab).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Otwórz…", command=self._open_dialog).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Zapisz", command=self._save).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Zapisz jako…", command=self._save_as).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Katalog…", command=self._choose_project_dir).pack(side="left", padx=2)
-        ttk.Button(toolbar, text="Zamknij kartę", command=self._close_current_tab).pack(side="left", padx=2)
+        self._tb_new = ttk.Button(toolbar, text=t("file.new"), command=self._new_tab)
+        self._tb_new.pack(side="left", padx=2)
+        self._tb_open = ttk.Button(toolbar, text=t("file.open"), command=self._open_dialog)
+        self._tb_open.pack(side="left", padx=2)
+        self._tb_save = ttk.Button(toolbar, text=t("file.save"), command=self._save)
+        self._tb_save.pack(side="left", padx=2)
+        self._tb_save_as = ttk.Button(toolbar, text=t("file.save_as"), command=self._save_as)
+        self._tb_save_as.pack(side="left", padx=2)
+        self._tb_catalog = ttk.Button(toolbar, text=t("toolbar.catalog"), command=self._choose_project_dir)
+        self._tb_catalog.pack(side="left", padx=2)
+        self._tb_close = ttk.Button(toolbar, text=t("file.close_tab"), command=self._close_current_tab)
+        self._tb_close.pack(side="left", padx=2)
 
         paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         paned.pack(fill="both", expand=True, padx=6, pady=(0, 6))
@@ -233,57 +241,57 @@ class EditorWindow:
         self.root.configure(menu=menubar)
 
         file_m = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Plik", menu=file_m)
-        file_m.add_command(label="Nowy", accelerator="Ctrl+N", command=self._new_tab)
-        file_m.add_command(label="Otwórz…", accelerator="Ctrl+O", command=self._open_dialog)
+        menubar.add_cascade(label=t("menu.file"), menu=file_m)
+        file_m.add_command(label=t("file.new"), accelerator="Ctrl+N", command=self._new_tab)
+        file_m.add_command(label=t("file.open"), accelerator="Ctrl+O", command=self._open_dialog)
         file_m.add_separator()
-        file_m.add_command(label="Zapisz", accelerator="Ctrl+S", command=self._save)
-        file_m.add_command(label="Zapisz jako…", accelerator="Ctrl+Shift+S", command=self._save_as)
+        file_m.add_command(label=t("file.save"), accelerator="Ctrl+S", command=self._save)
+        file_m.add_command(label=t("file.save_as"), accelerator="Ctrl+Shift+S", command=self._save_as)
         file_m.add_separator()
         file_m.add_command(
-            label="Katalog projektu…",
+            label=t("file.project_dir"),
             accelerator="Ctrl+Shift+O",
             command=self._choose_project_dir,
         )
         file_m.add_command(
-            label="Domyślny katalog (dokumenty/lore)",
+            label=t("file.default_dir"),
             command=self._use_default_project_dir,
         )
         file_m.add_separator()
-        file_m.add_command(label="Zamknij kartę", accelerator="Ctrl+W", command=self._close_current_tab)
-        file_m.add_command(label="Zapisz projekt lore", command=self._save_lore)
+        file_m.add_command(label=t("file.close_tab"), accelerator="Ctrl+W", command=self._close_current_tab)
+        file_m.add_command(label=t("file.save_lore"), command=self._save_lore)
         file_m.add_separator()
-        file_m.add_command(label="Zakończ", command=self._on_close)
+        file_m.add_command(label=t("file.quit"), command=self._on_close)
 
         edit_m = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Edycja", menu=edit_m)
-        edit_m.add_command(label="Cofnij", accelerator="Ctrl+Z", command=self._undo)
-        edit_m.add_command(label="Ponów", accelerator="Ctrl+Y", command=self._redo)
+        menubar.add_cascade(label=t("menu.edit"), menu=edit_m)
+        edit_m.add_command(label=t("edit.undo"), accelerator="Ctrl+Z", command=self._undo)
+        edit_m.add_command(label=t("edit.redo"), accelerator="Ctrl+Y", command=self._redo)
         edit_m.add_separator()
-        edit_m.add_command(label="Znajdź…", accelerator="Ctrl+F", command=self._show_find)
+        edit_m.add_command(label=t("edit.find"), accelerator="Ctrl+F", command=self._show_find)
         edit_m.add_command(
-            label="Słownik nazw…",
+            label=t("edit.name_dict"),
             accelerator="Ctrl+Shift+D",
             command=self._show_name_dictionary,
         )
         edit_m.add_command(
-            label="Sprawdź pisownię…",
+            label=t("edit.spellcheck"),
             accelerator="F7",
             command=self._show_spellcheck,
         )
         edit_m.add_separator()
-        edit_m.add_command(label="Zawijaj wiersze", command=self._toggle_wrap)
+        edit_m.add_command(label=t("edit.wrap"), command=self._toggle_wrap)
 
         lore_m = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Lore", menu=lore_m)
-        lore_m.add_command(label="Odśwież panel", command=self._panel.odswiez)
-        lore_m.add_command(label="Zapisz projekt lore", command=self._save_lore)
+        menubar.add_cascade(label=t("menu.lore"), menu=lore_m)
+        lore_m.add_command(label=t("lore.refresh"), command=self._panel.odswiez)
+        lore_m.add_command(label=t("file.save_lore"), command=self._save_lore)
         lore_m.add_separator()
-        lore_m.add_command(label="Utwórz punkt przywracania…", command=self._create_snapshot)
-        lore_m.add_command(label="Historia zmian…", command=self._show_history)
+        lore_m.add_command(label=t("lore.snapshot"), command=self._create_snapshot)
+        lore_m.add_command(label=t("lore.history"), command=self._show_history)
 
         view_m = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Wygląd", menu=view_m)
+        menubar.add_cascade(label=t("menu.view"), menu=view_m)
         for _cat_id, cat_label, items in list_presets_by_category():
             sub = tk.Menu(view_m, tearoff=0)
             view_m.add_cascade(label=cat_label, menu=sub)
@@ -296,7 +304,7 @@ class EditorWindow:
                 )
         view_m.add_separator()
         size_m = tk.Menu(view_m, tearoff=0)
-        view_m.add_cascade(label="Rozmiar czcionki", menu=size_m)
+        view_m.add_cascade(label=t("view.font_size"), menu=size_m)
         for pt in (11, 12):
             size_m.add_radiobutton(
                 label=f"{pt} pt",
@@ -305,7 +313,7 @@ class EditorWindow:
                 command=self._on_typography_size,
             )
         spacing_m = tk.Menu(view_m, tearoff=0)
-        view_m.add_cascade(label="Interlinia", menu=spacing_m)
+        view_m.add_cascade(label=t("view.line_spacing"), menu=spacing_m)
         for sp, label in ((1.0, "1,0 — druk / gotowy tekst"), (1.5, "1,5 — szkic roboczy")):
             spacing_m.add_radiobutton(
                 label=label,
@@ -315,9 +323,9 @@ class EditorWindow:
             )
 
         print_m = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Wydruk", menu=print_m)
+        menubar.add_cascade(label=t("menu.print"), menu=print_m)
         prev_m = tk.Menu(print_m, tearoff=0)
-        print_m.add_cascade(label="Podgląd stron", menu=prev_m)
+        print_m.add_cascade(label=t("print.preview"), menu=prev_m)
         prev_m.add_command(
             label="Scenariusz (Courier, 1 str. ≈ 1 min)",
             command=lambda: self._show_print_preview("screenplay"),
@@ -332,7 +340,7 @@ class EditorWindow:
         )
         print_m.add_separator()
         exp_m = tk.Menu(print_m, tearoff=0)
-        print_m.add_cascade(label="Eksportuj DOCX…", menu=exp_m)
+        print_m.add_cascade(label=t("print.export_docx"), menu=exp_m)
         exp_m.add_command(
             label="Rękopis do wydawnictwa (TNR 12, margines 2,5 cm)",
             command=lambda: self._export_docx("submission"),
@@ -346,44 +354,54 @@ class EditorWindow:
             command=lambda: self._export_docx("print_ready"),
         )
 
+        lang_m = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=t("app.language"), menu=lang_m)
+        for pack in list_locales():
+            lang_m.add_radiobutton(
+                label=f"{pack.display_name()} ({pack.code})",
+                variable=self._locale_var,
+                value=pack.code,
+                command=lambda c=pack.code: self._change_locale(c),
+            )
+
         help_m = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Pomoc", menu=help_m)
+        menubar.add_cascade(label=t("menu.help"), menu=help_m)
         help_m.add_command(
-            label="Przewodnik pisarza",
+            label=t("help.writer_guide"),
             accelerator="F1",
-            command=lambda: open_help(self.root, "Przewodnik pisarza"),
+            command=lambda: open_help(self.root, t("help.writer_guide")),
         )
         help_m.add_command(
-            label="Skróty klawiszowe",
-            command=lambda: open_help(self.root, "Skróty klawiszowe"),
+            label=t("help.shortcuts"),
+            command=lambda: open_help(self.root, t("help.shortcuts")),
         )
         help_m.add_command(
-            label="Czcionki i wygląd",
-            command=lambda: open_help(self.root, "Czcionki i wygląd"),
+            label=t("help.fonts"),
+            command=lambda: open_help(self.root, t("help.fonts")),
         )
         help_m.add_command(
-            label="Wydruk i eksport",
-            command=lambda: open_help(self.root, "Wydruk i eksport"),
+            label=t("help.print"),
+            command=lambda: open_help(self.root, t("help.print")),
         )
         help_m.add_command(
-            label="Panel Lore",
-            command=lambda: open_help(self.root, "Panel Lore"),
+            label=t("help.panel"),
+            command=lambda: open_help(self.root, t("help.panel")),
         )
         help_m.add_command(
-            label="Słownik i pisownia",
-            command=lambda: open_help(self.root, "Słownik i pisownia"),
+            label=t("help.spell"),
+            command=lambda: open_help(self.root, t("help.spell")),
         )
         help_m.add_command(
-            label="Kontekst czasowy",
-            command=lambda: open_help(self.root, "Kontekst czasowy"),
+            label=t("help.temporal"),
+            command=lambda: open_help(self.root, t("help.temporal")),
         )
         help_m.add_command(
-            label="Zapytania semantyczne",
-            command=lambda: open_help(self.root, "Zapytania semantyczne"),
+            label=t("help.query"),
+            command=lambda: open_help(self.root, t("help.query")),
         )
         help_m.add_command(
-            label="Historia zmian",
-            command=lambda: open_help(self.root, "Historia zmian"),
+            label=t("help.history"),
+            command=lambda: open_help(self.root, t("help.history")),
         )
         help_m.add_command(
             label="Pliki i Lore Pack",
@@ -948,6 +966,44 @@ class EditorWindow:
         except Exception as e:
             messagebox.showerror("Historia", str(e), parent=self.root)
 
+    def _change_locale(self, code: str) -> None:
+        try:
+            pack = set_locale(code, persist=True)
+        except KeyError as e:
+            messagebox.showerror(t("app.language"), str(e), parent=self.root)
+            self._locale_var.set(get_locale())
+            return
+        self._locale_var.set(pack.code)
+        # Przebuduj menu i pasek — etykiety z nowej paczki
+        self._build_menu()
+        self._build_ui_labels()
+        self._update_status()
+        self._update_window_title()
+        messagebox.showinfo(
+            t("app.language"),
+            t("app.language_restart", name=pack.display_name()),
+            parent=self.root,
+        )
+
+    def _build_ui_labels(self) -> None:
+        """Odśwież etykiety toolbara / tytułu po zmianie locale."""
+        self._status_var.set(t("app.ready"))
+        for attr, key in (
+            ("_title_lbl", "app.name"),
+            ("_tb_new", "file.new"),
+            ("_tb_open", "file.open"),
+            ("_tb_save", "file.save"),
+            ("_tb_save_as", "file.save_as"),
+            ("_tb_catalog", "toolbar.catalog"),
+            ("_tb_close", "file.close_tab"),
+        ):
+            w = getattr(self, attr, None)
+            if w is not None:
+                try:
+                    w.configure(text=t(key))
+                except tk.TclError:
+                    pass
+
     def _show_history(self) -> None:
         open_history_window(self.root, self._lore, on_restored=self._odswiez_z_dysku)
 
@@ -970,7 +1026,10 @@ class EditorWindow:
         self._update_status()
 
     def _schedule_autosave(self) -> None:
+        self._autosave_fail_streak = 0
+
         def _tick():
+            failed: list[str] = []
             for tab_id, tab in list(self._tabs.items()):
                 if tab.dirty and tab.path:
                     try:
@@ -983,10 +1042,23 @@ class EditorWindow:
                         )
                         tab.dirty = False
                         self._update_tab_title(tab_id)
-                    except (OSError, Exception):
-                        pass
+                    except (OSError, Exception) as e:
+                        failed.append(f"{Path(tab.path).name}: {e}")
+            if failed:
+                self._autosave_fail_streak += 1
+                # nie spamuj co minutę — status zawsze, dialog co 3. nieudaną rundę
+                self._status_var.set(t("status.autosave_failed", error=failed[0]))
+                if self._autosave_fail_streak % 3 == 1:
+                    messagebox.showwarning(
+                        t("app.name"),
+                        t("status.autosave_failed", error="\n".join(failed[:3])),
+                        parent=self.root,
+                    )
+            else:
+                self._autosave_fail_streak = 0
             self._update_window_title()
-            self._update_status()
+            if not failed:
+                self._update_status()
             self.root.after(_AUTOSAVE_MS, _tick)
 
         self.root.after(_AUTOSAVE_MS, _tick)
@@ -1001,20 +1073,26 @@ class EditorWindow:
         zapisz_lore = True
         if self._lore.lore_niezapisane():
             zapisz_lore = messagebox.askyesno(
-                "Niezapisane lore",
-                "Graf lore ma niezapisane zmiany. Zapisać przed zamknięciem?",
+                t("dialog.unsaved_lore"),
+                t("dialog.unsaved_lore_ask"),
                 parent=self.root,
             )
             if not zapisz_lore and not messagebox.askokcancel(
-                "Zamknij bez zapisu lore",
-                "Zamknąć bez zapisu zmian w grafie lore?",
+                t("dialog.close_no_save"),
+                t("dialog.close_no_save_ask"),
                 parent=self.root,
             ):
                 return
         try:
             self._lore.close(zapisz_lore=zapisz_lore)
-        except Exception:
-            pass
+        except Exception as e:
+            if not messagebox.askyesno(
+                t("app.name"),
+                t("status.close_save_failed", error=str(e))
+                + "\n\nZamknąć mimo błędu?",
+                parent=self.root,
+            ):
+                return
         self.root.destroy()
 
 

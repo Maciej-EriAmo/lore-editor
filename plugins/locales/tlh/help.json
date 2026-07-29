@@ -1,0 +1,6 @@
+{
+  "writer_guide": {
+    "title": "ghItlhwI' DevwI'",
+    "body": "Lore Editor — ghItlh + qun.\n\nlo'laH:\n  lore-editor --locale tlh\n\nDochvam 'oH locale pack'e' (plugins/locales/tlh).\nSee docs/PLUGINY_JEZYKOWE.md"
+  }
+}

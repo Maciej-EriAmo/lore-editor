@@ -1,0 +1,9 @@
+{
+  "code": "tlh",
+  "name": "Klingon",
+  "native_name": "tlhIngan Hol",
+  "spell": "tlh",
+  "author": "Example locale pack",
+  "version": "0.1",
+  "description": "Przykładowa paczka językowa — szablon do własnych pluginów"
+}

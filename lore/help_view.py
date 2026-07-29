@@ -22,9 +22,11 @@ class HelpWindow:
             self._win.focus_force()
             return
 
+        from lore.i18n import t
+
         win = tk.Toplevel(self._parent)
         self._win = win
-        win.title("Pomoc — Lore Editor")
+        win.title(t("help.title"))
         win.geometry("780x560")
         win.minsize(520, 400)
         win.transient(self._parent)
@@ -35,7 +37,7 @@ class HelpWindow:
 
         left = ttk.Frame(body, padding=4)
         body.add(left, weight=1)
-        ttk.Label(left, text="Tematy", style="Head.TLabel").pack(anchor="w", pady=(0, 6))
+        ttk.Label(left, text=t("help.topics"), style="Head.TLabel").pack(anchor="w", pady=(0, 6))
 
         self._list = tk.Listbox(left, exportselection=False)
         from lore.theme import style_listbox
@@ -58,7 +60,7 @@ class HelpWindow:
 
         foot = ttk.Frame(win, padding=(8, 4))
         foot.pack(fill="x")
-        ttk.Button(foot, text="Zamknij", command=win.destroy).pack(side="right")
+        ttk.Button(foot, text=t("help.close"), command=win.destroy).pack(side="right")
 
         win.protocol("WM_DELETE_WINDOW", win.destroy)
         win.bind("<Escape>", lambda _e: win.destroy())

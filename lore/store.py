@@ -91,28 +91,66 @@ class LoreStore:
         *,
         profile: Optional[str] = None,
         project_dir: str | Path | None = None,
+        user: Optional[str] = None,
+        token: Optional[str] = None,
     ) -> "LoreStore":
         paths = ProjectPaths.discover(project, project_dir)
-        store = cls(connect_rpc(host, port, profile=profile), paths)
+        store = cls(
+            connect_rpc(
+                host, port, profile=profile, user=user, token=token, login=True
+            ),
+            paths,
+        )
         store._ensure_project()
         return store
 
     def close(self, *, zapisz_lore: bool = True) -> None:
+        """
+        Zamyka backend.
+        zapisz_lore=True  → zapisz() potem release bez drugiego flush.
+        zapisz_lore=False → porzuć dirty w RAM (bez zapisu na dysk).
+        Błędy zapisu/close nie są połykane.
+        """
+        save_err: Exception | None = None
         if zapisz_lore:
             try:
+                # zawsze ZAPISZ gdy proszono — indeksy + spójność .kafd
                 self.zapisz()
-            except LoreBackendError:
-                pass
-        self._backend.close()
+            except Exception as e:
+                save_err = e
+        close_err: Exception | None = None
+        try:
+            # NIGDY auto-flush tu: przy zapisz_lore=False to byłby wyciek zapisu
+            close_fn = getattr(self._backend, "close")
+            try:
+                close_fn(flush=False)
+            except TypeError:
+                close_fn()
+        except Exception as e:
+            close_err = e
+        if save_err is not None:
+            raise LoreBackendError(f"Zapis lore przy zamykaniu nieudany: {save_err}") from save_err
+        if close_err is not None:
+            raise LoreBackendError(f"Błąd zamykania backendu: {close_err}") from close_err
 
     # ── Projekt ───────────────────────────────────────────────────────────
 
     def _ensure_project(self) -> None:
         worlds = self._run_line("LISTA ŚWIATÓW", strict=False)
+        if worlds.get("status") == "error":
+            raise LoreBackendError(
+                worlds.get("message")
+                or "LISTA ŚWIATÓW nieudana — sprawdź auth RPC (LORE_RPC_USER/TOKEN)."
+            )
         names = {w.get("name") for w in worlds.get("worlds", [])}
         if self._project not in names:
             self._run_line(f'UTWÓRZ ŚWIAT "{_esc(self._project)}"')
-        self._run_line(f'WYBIERZ ŚWIAT "{_esc(self._project)}"')
+        attach = self._run_line(f'WYBIERZ ŚWIAT "{_esc(self._project)}"')
+        if attach.get("status") == "error":
+            raise LoreBackendError(
+                attach.get("message")
+                or f"Nie dołączono świata '{self._project}' (ACL / logowanie RPC)."
+            )
         if self.tryb_lokalny():
             self._historia.inicjalizuj()
             self._historia.utworz_bazowy_jesli_pusty()
@@ -155,7 +193,14 @@ class LoreStore:
 
     def lore_niezapisane(self) -> bool:
         """Czy graf lore ma zmiany niezsynchronizowane z .kafd."""
-        return self._dirty
+        if self._dirty:
+            return True
+        # desync: mutacja tylko na world.dirty (np. ROZWIJ / inject poza API)
+        backend = self._backend
+        world = getattr(backend, "_world", None)
+        if world is not None and getattr(world, "dirty", False):
+            return True
+        return False
 
     def nazwa_projektu(self) -> str:
         return self._project
@@ -626,7 +671,11 @@ class LoreStore:
         return self._backend.execute(script.strip(), strict=strict)
 
     def _run_line(self, line: str, *, strict: bool = True) -> dict:
-        return _last(self._run(line, strict=strict))
+        row = _last(self._run(line, strict=strict))
+        # RPC + strict=False: nadal wykryj status error w odpowiedzi
+        if strict and row.get("status") == "error":
+            raise LoreBackendError(row.get("message") or "Błąd zapytania lore")
+        return row
 
     def _inject(self, bubble: str, key: str, value: Any) -> None:
         verb = "WSTRZYKNIJ"

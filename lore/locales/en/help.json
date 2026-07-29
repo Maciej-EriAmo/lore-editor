@@ -1,0 +1,14 @@
+{
+  "writer_guide": {
+    "title": "Writer's guide",
+    "body": "Lore Editor — chapter writing with a lore panel (characters, ideas, influences).\n\nQUICK START\n1. Run: lore-editor\n2. File → Open… — pick a chapter (.txt / .md).\n3. Lore panel (right) → + Character / + Idea / + Influence.\n4. Ctrl+S saves chapter and lore together.\n5. Optional: Ctrl+Shift+D (name dictionary) · F7 (spelling).\n\nLANGUAGE\nMenu Language (or LORE_LOCALE=en). See docs/PLUGINY_JEZYKOWE.md for locale plugins.\n\nNETWORK\n--rpc uses cynober-server (Karmazyn tunnel, not plain HTTP).\nAuth: LORE_RPC_USER / LORE_RPC_TOKEN or profile user/token in ~/.karmazyn_client.json."
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "body": "Ctrl+N  New tab\nCtrl+O  Open\nCtrl+S  Save\nCtrl+Shift+S  Save as\nCtrl+W  Close tab\nCtrl+F  Find\nCtrl+Shift+D  Name dictionary\nF7  Spell check\nF1  Help\nCtrl+Z / Ctrl+Y  Undo / Redo"
+  },
+  "spell": {
+    "title": "Dictionary and spelling",
+    "body": "F7 checks spelling offline.\n• pl — SJP.PL hunspell (bundled)\n• en — hunspell en_US if present under lore/data/en_US, else project/lore names + common list\n\nNames from the lore graph are always accepted."
+  }
+}

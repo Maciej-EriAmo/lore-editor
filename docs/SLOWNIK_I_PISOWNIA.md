@@ -33,16 +33,26 @@ Moduł UI: `lore/dictionary_view.py` → `NameDictionaryDialog`.
 
 ## Sprawdzanie pisowni (F7)
 
+Backend zależy od **locale** (`meta.json` → pole `spell`, albo aktywny język UI):
+
+| `spell` / locale | Silnik |
+|------------------|--------|
+| `pl` (domyślny) | SJP.PL hunspell → zapas `pl_common.txt.gz` |
+| `en` | opcjonalny hunspell `lore/data/en_US/en_US` → bootstrap EN |
+| inny (`tlh`, `ja`, …) | tylko lore + `.lore-spelling.json` + sesja |
+
 ### Kolejność decyzji „czy słowo jest OK”
 
 1. **Sesja** — słowa oznaczone „Ignoruj” w bieżącym oknie F7  
 2. **Lore** — pełne nazwy i tokeny z grafu (postacie, miejsca…)  
 3. **Projekt** — plik `.lore-spelling.json` w folderze powieści  
 4. **Akronimy** — same wielkie litery, długość 2–6 (np. FBI)  
-5. **SJP.PL** (gdy dostępny) — hunspell `pl_PL` przez **spylls**  
-6. **Zapas** — `lore/data/pl_common.txt.gz` (lista frekwencyjna), tylko gdy brak SJP/spylls  
+5. **Hunspell** (gdy dostępny dla locale: SJP / en_US) przez **spylls**  
+6. **Zapas** — lista frekwencyjna PL lub bootstrap EN (gdy brak plików hunspell)  
 
-### Silnik SJP.PL
+Tokenizacja: litery łacińskie + polskie; **CJK / japoński** nie jest jeszcze tokenizowany jak słowa (wymaga osobnego tokenizera w przyszłej wersji).
+
+### Silnik SJP.PL (`spell=pl`)
 
 | Plik | Rola |
 |------|------|
@@ -58,7 +68,19 @@ Moduł UI: `lore/dictionary_view.py` → `NameDictionaryDialog`.
 
 Silnik: pakiet PyPI **`spylls`** (czysty Python, hunspell lookup + suggest).
 
-Ładowanie: `lore.spellcheck.load_sjp_dictionary()` (cache). Etykieta UI: `backend_label()`.
+Ładowanie: `lore.spellcheck.load_sjp_dictionary()` / `load_en_dictionary()` (cache).  
+Etykieta UI: `backend_label(lang)`.
+
+### Opcjonalny EN hunspell
+
+Umieść pliki hunspell:
+
+```
+lore/data/en_US/en_US.aff
+lore/data/en_US/en_US.dic
+```
+
+Bez nich korekta EN używa wbudowanej listy częstych słów + lore.
 
 ### Plik projektu `.lore-spelling.json`
 

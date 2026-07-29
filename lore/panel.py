@@ -9,6 +9,7 @@ from tkinter import messagebox, simpledialog, ttk
 from typing import Callable, Optional
 
 from lore.graph_view import open_graph_window
+from lore.i18n import t
 from lore.store import LoreStore
 from lore.theme import style_listbox, style_text
 from lore.types import (
@@ -56,7 +57,7 @@ class _EditEntityDialog(tk.Toplevel):
         self._fields = fields
         self._widgets: dict[str, tk.Text] = {}
 
-        self.title(f"Edytuj — {name}")
+        self.title(t("dialog.edit", name=name))
         self.transient(parent.winfo_toplevel())
         self.resizable(True, True)
         self.minsize(320, 240)
@@ -84,8 +85,8 @@ class _EditEntityDialog(tk.Toplevel):
 
         btns = ttk.Frame(self, padding=8)
         btns.pack(fill="x")
-        ttk.Button(btns, text="Zapisz", command=self._save).pack(side="right", padx=(4, 0))
-        ttk.Button(btns, text="Anuluj", command=self.destroy).pack(side="right")
+        ttk.Button(btns, text=t("dialog.save"), command=self._save).pack(side="right", padx=(4, 0))
+        ttk.Button(btns, text=t("dialog.cancel"), command=self.destroy).pack(side="right")
 
         self.bind("<Escape>", lambda _e: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self.destroy)
@@ -146,7 +147,7 @@ class LorePanel(ttk.Frame):
     def _build_ui(self) -> None:
         hdr = ttk.Frame(self)
         hdr.pack(fill="x", pady=(0, 6))
-        ttk.Label(hdr, text="Lore", style="Head.TLabel").pack(anchor="w")
+        ttk.Label(hdr, text=t("menu.lore"), style="Head.TLabel").pack(anchor="w")
         ttk.Label(
             hdr,
             textvariable=self._proj_name_var,
@@ -154,21 +155,29 @@ class LorePanel(ttk.Frame):
         ).pack(anchor="w")
         ttk.Label(hdr, textvariable=self._proj_folder_var, style="Dim.TLabel").pack(anchor="w")
 
-        add = ttk.LabelFrame(self, text="Dodaj", padding=4)
+        add = ttk.LabelFrame(self, text=t("panel.add"), padding=4)
         add.pack(fill="x", pady=(0, 6))
         row = ttk.Frame(add)
         row.pack(fill="x")
-        ttk.Button(row, text="+ Postać", command=self._dlg_postac).pack(side="left", expand=True, fill="x", padx=1)
-        ttk.Button(row, text="+ Pomysł", command=self._dlg_pomysl).pack(side="left", expand=True, fill="x", padx=1)
-        ttk.Button(row, text="+ Wpływ", command=self._dlg_wplyw).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(row, text=t("panel.add_character"), command=self._dlg_postac).pack(
+            side="left", expand=True, fill="x", padx=1
+        )
+        ttk.Button(row, text=t("panel.add_idea"), command=self._dlg_pomysl).pack(
+            side="left", expand=True, fill="x", padx=1
+        )
+        ttk.Button(row, text=t("panel.add_influence"), command=self._dlg_wplyw).pack(
+            side="left", expand=True, fill="x", padx=1
+        )
 
         self._notebook = ttk.Notebook(self)
         self._notebook.pack(fill="both", expand=True)
 
         tab_lore = ttk.Frame(self._notebook, padding=2)
-        self._notebook.add(tab_lore, text="Rozdział")
+        self._notebook.add(tab_lore, text=t("panel.tab_chapter"))
 
-        ttk.Label(tab_lore, text="Powiązane z tym plikiem:", style="Dim.TLabel").pack(anchor="w", pady=(0, 4))
+        ttk.Label(tab_lore, text=t("panel.linked_to_file"), style="Dim.TLabel").pack(
+            anchor="w", pady=(0, 4)
+        )
 
         list_frame = ttk.Frame(tab_lore)
         list_frame.pack(fill="both", expand=True)
@@ -184,14 +193,14 @@ class LorePanel(ttk.Frame):
 
         act = ttk.Frame(tab_lore)
         act.pack(fill="x", pady=6)
-        ttk.Button(act, text="Powiąż z rozdziałem", command=self._powiaz).pack(fill="x", pady=1)
-        ttk.Button(act, text="Powiąż inny wpis…", command=self._dlg_powiaz).pack(fill="x", pady=1)
-        ttk.Button(act, text="Połącz z…", command=self._dlg_polacz).pack(fill="x", pady=1)
-        ttk.Button(act, text="Odłącz od rozdziału", command=self._odlacz).pack(fill="x", pady=1)
-        ttk.Button(act, text="Edytuj wpis", command=self._dlg_edytuj).pack(fill="x", pady=1)
-        ttk.Button(act, text="Usuń wpis", command=self._usun_wpis).pack(fill="x", pady=1)
-        ttk.Button(act, text="Mapa powiązań", command=self._mapa).pack(fill="x", pady=1)
-        ttk.Button(act, text="Odśwież", command=self.odswiez).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.link_chapter"), command=self._powiaz).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.link_other"), command=self._dlg_powiaz).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.connect"), command=self._dlg_polacz).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.unlink"), command=self._odlacz).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.edit_entry"), command=self._dlg_edytuj).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.delete_entry"), command=self._usun_wpis).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.map"), command=self._mapa).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.refresh"), command=self.odswiez).pack(fill="x", pady=1)
 
         self._detail = tk.Text(tab_lore, height=5)
         style_text(self._detail, height=5)
@@ -199,29 +208,25 @@ class LorePanel(ttk.Frame):
         self._detail.configure(state="disabled")
 
         tab_search = ttk.Frame(self._notebook, padding=4)
-        self._notebook.add(tab_search, text="Szukaj")
+        self._notebook.add(tab_search, text=t("panel.tab_search"))
         sf = ttk.Frame(tab_search)
         sf.pack(fill="x", pady=4)
         self._search_var = tk.StringVar()
         ttk.Entry(sf, textvariable=self._search_var).pack(side="left", fill="x", expand=True, padx=(0, 4))
-        ttk.Button(sf, text="Szukaj", command=self._szukaj).pack(side="left")
+        ttk.Button(sf, text=t("panel.search_btn"), command=self._szukaj).pack(side="left")
         ttk.Label(
             tab_search,
-            text=(
-                "Zapytanie semantyczne lub fraza.\n"
-                "Np.: postacie przy Anna nie od 5\n"
-                "typ:Postać \"sojusznik\"  ·  wyniki → Rozdział"
-            ),
+            text=t("panel.search_hint"),
             style="Dim.TLabel",
             wraplength=240,
         ).pack(anchor="w", pady=8)
 
         if self._lore.tryb_lokalny():
             tab_team = ttk.Frame(self._notebook, padding=4)
-            self._notebook.add(tab_team, text="Zespół")
+            self._notebook.add(tab_team, text=t("panel.tab_team"))
             ttk.Label(
                 tab_team,
-                text="Sync lore przez cynober-server.\nNajpierw zapisz projekt lokalnie.",
+                text=t("panel.team_hint"),
                 style="Dim.TLabel",
                 wraplength=240,
             ).pack(anchor="w", pady=(0, 8))
@@ -233,9 +238,9 @@ class LorePanel(ttk.Frame):
             ttk.Entry(team_row, textvariable=self._host_var, width=12).pack(side="left", fill="x", expand=True, padx=4)
             ttk.Label(team_row, text=":").pack(side="left")
             ttk.Entry(team_row, textvariable=self._port_var, width=5).pack(side="left", padx=2)
-            ttk.Button(tab_team, text="Wyślij na serwer", command=self._sync_wyslij).pack(fill="x", pady=3)
-            ttk.Button(tab_team, text="Pobierz z serwera", command=self._sync_pobierz).pack(fill="x", pady=3)
-            ttk.Button(tab_team, text="Synchronizuj", command=self._sync_auto).pack(fill="x", pady=3)
+            ttk.Button(tab_team, text=t("panel.push"), command=self._sync_wyslij).pack(fill="x", pady=3)
+            ttk.Button(tab_team, text=t("panel.pull"), command=self._sync_pobierz).pack(fill="x", pady=3)
+            ttk.Button(tab_team, text=t("panel.sync"), command=self._sync_auto).pack(fill="x", pady=3)
         else:
             self._host_var = tk.StringVar()
             self._port_var = tk.StringVar()
@@ -243,7 +248,7 @@ class LorePanel(ttk.Frame):
     def _sciezka_rozdzialu(self) -> str:
         path = self._get_file()
         if not path:
-            raise ValueError("Otwórz najpierw rozdział (plik tekstowy) w edytorze.")
+            raise ValueError(t("panel.open_chapter_first"))
         return path
 
     def odswiez(self) -> None:
@@ -410,7 +415,7 @@ class LorePanel(ttk.Frame):
     def _dlg_edytuj(self) -> None:
         name = self._selected_name()
         if not name:
-            messagebox.showinfo("Lore", "Wybierz wpis do edycji.", parent=self)
+            messagebox.showinfo(t("menu.lore"), t("panel.select_to_edit"), parent=self)
             return
         try:
             as_of = self._lore.dokument_biezacy(self._get_file() or None)
@@ -436,7 +441,7 @@ class LorePanel(ttk.Frame):
     def _odlacz(self) -> None:
         name = self._selected_name()
         if not name:
-            messagebox.showinfo("Lore", "Wybierz element z listy.", parent=self)
+            messagebox.showinfo(t("menu.lore"), t("panel.select_entry"), parent=self)
             return
         try:
             path = self._sciezka_rozdzialu()

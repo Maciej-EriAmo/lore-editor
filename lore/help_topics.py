@@ -467,10 +467,109 @@ Składowe (pisownia):
 
 DEFAULT_TOPIC = "Przewodnik pisarza"
 
+# id help.json → tytuł PL w TOPICS
+_HELP_ID_TO_PL: dict[str, str] = {
+    "writer_guide": "Przewodnik pisarza",
+    "shortcuts": "Skróty klawiszowe",
+    "fonts": "Czcionki i wygląd",
+    "print": "Wydruk i eksport",
+    "panel": "Panel Lore",
+    "spell": "Słownik i pisownia",
+    "temporal": "Kontekst czasowy",
+    "query": "Zapytania semantyczne",
+    "history": "Historia zmian",
+}
+
+# klucz i18n → tytuł PL (gdy paczka nie ma help.json)
+_I18N_KEY_TO_PL: dict[str, str] = {
+    "help.writer_guide": "Przewodnik pisarza",
+    "help.shortcuts": "Skróty klawiszowe",
+    "help.fonts": "Czcionki i wygląd",
+    "help.print": "Wydruk i eksport",
+    "help.panel": "Panel Lore",
+    "help.spell": "Słownik i pisownia",
+    "help.temporal": "Kontekst czasowy",
+    "help.query": "Zapytania semantyczne",
+    "help.history": "Historia zmian",
+}
+
+
+def _active_topics() -> dict[str, tuple[str, str]]:
+    """
+    PL bazowy + opcjonalne nadpisania z locale pack.
+    Zasady proste:
+      1. start od TOPICS (PL)
+      2. help.json paczki: zamień body/title dla znanego id (albo dodaj nowy temat)
+      3. t(help.*) zmienia wyświetlany tytuł (klucz mapy), body zostaje jeśli brak w paczce
+    """
+    out: dict[str, tuple[str, str]] = dict(TOPICS)
+    try:
+        from lore.i18n.core import help_topic_map, t
+    except Exception:
+        return out
+
+    # 1) nadpisania z help.json
+    for tid, (title, body) in help_topic_map().items():
+        body = (body or "").strip()
+        title = (title or tid).strip()
+        if not body:
+            continue
+        pl_title = _HELP_ID_TO_PL.get(tid)
+        if pl_title and pl_title in out:
+            del out[pl_title]
+        out[title] = (title, body)
+
+    # 2) przemianuj klucze według t() — zachowaj body
+    renamed: dict[str, tuple[str, str]] = {}
+    used_bodies: set[str] = set()
+    for i18n_key, pl_title in _I18N_KEY_TO_PL.items():
+        loc_title = t(i18n_key)
+        # znajdź body: po PL lub już przetłumaczonym tytule
+        body = None
+        if pl_title in out:
+            body = out[pl_title][1]
+        elif loc_title in out:
+            body = out[loc_title][1]
+        if body is None:
+            continue
+        renamed[loc_title] = (loc_title, body)
+        used_bodies.add(pl_title)
+        used_bodies.add(loc_title)
+
+    # 3) dołącz tematy bez mapowania i18n (O programie, Sieć, …)
+    for title, pair in out.items():
+        if title in renamed:
+            continue
+        if title in used_bodies:
+            continue
+        renamed[title] = pair
+    return renamed if renamed else out
+
 
 def topic_titles() -> list[str]:
-    return list(TOPICS.keys())
+    return list(_active_topics().keys())
 
 
 def get_topic(title: str) -> tuple[str, str]:
-    return TOPICS.get(title, TOPICS[DEFAULT_TOPIC])
+    topics = _active_topics()
+    if title in topics:
+        return topics[title]
+    # alias: stary PL tytuł przy locale EN
+    for i18n_key, pl_title in _I18N_KEY_TO_PL.items():
+        try:
+            from lore.i18n import t
+
+            if title in (pl_title, t(i18n_key)):
+                loc = t(i18n_key)
+                if loc in topics:
+                    return topics[loc]
+                if pl_title in TOPICS:
+                    return (loc, TOPICS[pl_title][1])
+        except Exception:
+            break
+    if DEFAULT_TOPIC in topics:
+        return topics[DEFAULT_TOPIC]
+    if topics:
+        first = next(iter(topics))
+        return topics[first]
+    return TOPICS[DEFAULT_TOPIC]
