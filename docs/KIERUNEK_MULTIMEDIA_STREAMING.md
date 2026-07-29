@@ -1,5 +1,7 @@
 # Kierunek rozwoju: multimedia, strumienie i rozszerzenie bazy
 
+**[English → MULTIMEDIA_STREAMING_ROADMAP.md](MULTIMEDIA_STREAMING_ROADMAP.md)**
+
 **Status:** kierunek architektoniczny (nieimplementowany)  
 **Kontekst:** rozmowa o warstwach ramki Cynober/Karmazyn, bąblach i docelowym strumieniowaniu  
 **Metafora:** *YouTube na sterydach* — publikacja i odtwarzanie multimediów osadzonych w grafie lore, z termodynamiką atomów, seekiem KAFD i tunelem Karmazyn zamiast HTTP-CDN.

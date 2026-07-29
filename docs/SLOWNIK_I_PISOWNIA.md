@@ -1,5 +1,7 @@
 # Słownik nazw i sprawdzanie pisowni
 
+**[English → SPELLING_AND_DICTIONARY.md](SPELLING_AND_DICTIONARY.md)**
+
 **Status:** zaimplementowane (offline-first)  
 **UI:** menu **Edycja** · skróty **Ctrl+Shift+D**, **F7**  
 **Pomoc w aplikacji:** temat „Słownik i pisownia”

@@ -1,5 +1,7 @@
 # Pluginy językowe (locale packs)
 
+**[English → LANGUAGE_PLUGINS.md](LANGUAGE_PLUGINS.md)**
+
 **Wersja aplikacji:** 0.7.4+  
 **Moduł:** `lore/i18n/` · wbudowane: `lore/locales/en/` · przykład: `plugins/locales/tlh/`
 
@@ -142,7 +144,7 @@ Dla **japońskiego** korekta ortografii nie używa hunspell PL — na start wyst
 | inny | lore + słownik projektu + sesja „ignoruj” |
 
 Tokenizacja na razie jest „łacińska + PL” — CJK wymaga osobnego tokenizera w przyszłej wersji.  
-Szczegóły: [SLOWNIK_I_PISOWNIA.md](SLOWNIK_I_PISOWNIA.md).
+Szczegóły: [SLOWNIK_I_PISOWNIA.md](SLOWNIK_I_PISOWNIA.md) · EN: [SPELLING_AND_DICTIONARY.md](SPELLING_AND_DICTIONARY.md).
 
 ---
 

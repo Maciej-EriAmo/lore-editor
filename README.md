@@ -1,5 +1,7 @@
 # Lore Editor
 
+**[English → README_EN.md](README_EN.md)**
+
 Edytor lore dla **pisarzy** — postacie, pomysły, wpływy, koligacje — na silniku [Cynober DB](https://github.com/Maciej-EriAmo/DBase).
 
 Narzędzie **pisarskie** (offline-first) — bez Lua, bez silnika gry.
@@ -462,11 +464,12 @@ python -m unittest discover -s tests -v
 
 ## Dokumentacja w repo
 
-| Plik | Temat |
-|------|--------|
-| [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | Locale packs, EN, szablon klingoński, klucze `ui.json` |
-| [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md) | Słownik nazw, F7, SJP / EN |
-| [docs/KIERUNEK_MULTIMEDIA_STREAMING.md](docs/KIERUNEK_MULTIMEDIA_STREAMING.md) | Kierunek: multimedia / KAFS (plan) |
+| PL | EN | Temat |
+|----|-----|--------|
+| [README.md](README.md) | [README_EN.md](README_EN.md) | Główna dokumentacja |
+| [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | [docs/LANGUAGE_PLUGINS.md](docs/LANGUAGE_PLUGINS.md) | Locale packs, klucze `ui.json` |
+| [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md) | [docs/SPELLING_AND_DICTIONARY.md](docs/SPELLING_AND_DICTIONARY.md) | Słownik nazw, F7, SJP / EN |
+| [docs/KIERUNEK_MULTIMEDIA_STREAMING.md](docs/KIERUNEK_MULTIMEDIA_STREAMING.md) | [docs/MULTIMEDIA_STREAMING_ROADMAP.md](docs/MULTIMEDIA_STREAMING_ROADMAP.md) | Multimedia / KAFS (plan) |
 
 ## Licencja
 
