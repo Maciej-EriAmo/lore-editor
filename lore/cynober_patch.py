@@ -30,15 +30,23 @@ def configure_cynober_for_lore() -> None:
 
 
 def sync_atom_id_counter(store: Any) -> None:
-    """Ustaw store._n za najwyższym wczytanym aN (naprawa kolizji po load)."""
-    counter = getattr(store, "_n", None)
-    if counter is None:
+    """Ustaw generator id za najwyższym wczytanym aN (naprawa kolizji po load).
+
+    Preferuje Store.sync_id_counter() (Python + NativeStore). Fallback: atoms().
+    """
+    if callable(getattr(store, "sync_id_counter", None)):
+        try:
+            store.sync_id_counter()
+            return
+        except Exception:
+            pass
+    if not hasattr(store, "_n"):
         return
-    reg = getattr(store, "reg", None)
-    if reg is None:
+    atoms_fn = getattr(store, "atoms", None)
+    if not callable(atoms_fn):
         return
     max_id = -1
-    for atom in reg.atoms():
+    for atom in atoms_fn():
         aid = getattr(atom, "id", "")
         if isinstance(aid, str) and aid.startswith("a") and aid[1:].isdigit():
             max_id = max(max_id, int(aid[1:]))
@@ -122,7 +130,8 @@ def save_lore_kafd(
             syn.metadata["bindings"] = bubble.bindings
             syn_ids.append(syn.id)
 
-        kinds = list({a.S for a in store.reg.atoms() if a.S})
+        # Publiczne API Store (Python + NativeStore/Rust) — bez store.reg (P6).
+        kinds = list({a.S for a in store.atoms() if a.S})
         if "__bubble__" not in kinds:
             kinds.append("__bubble__")
 
@@ -132,6 +141,8 @@ def save_lore_kafd(
         for atom in _iter_atoms(store):
             if not _is_doc_atom(atom, kinds):
                 continue
+            # KAFD wymaga string id (DB_karmin / NativeStore mapuje sid↔aid)
+            aid = str(atom.id)
             override_data = None
             data = atom.metadata.get("data", b"")
             if proca_index and len(data) > 0:
@@ -139,14 +150,14 @@ def save_lore_kafd(
                 if use_proca:
                     phi_vec = _atom_phi_vector(store, atom)
                     typ, res = proca_index.register_or_deduplicate(
-                        atom.id, data, phi_vec, float(atom.T)
+                        aid, data, phi_vec, float(atom.T)
                     )
                     if typ == "coordinate":
                         override_data = res.to_json_bytes()
             if override_data is not None:
-                atoms_dict[atom.id] = _encode_atom(atom, override_data=override_data)
+                atoms_dict[aid] = _encode_atom(atom, override_data=override_data)
             else:
-                atoms_dict[atom.id] = _encode_atom(atom)
+                atoms_dict[aid] = _encode_atom(atom)
 
         if proca_index:
             proca_index.save_all_sources()
@@ -163,7 +174,13 @@ def save_lore_kafd(
         return len(atoms_dict)
     finally:
         for sid in syn_ids:
-            store.reg.delete(sid)
+            # delete_atom = publiczne API (NativeStore + Python Store)
+            if callable(getattr(store, "delete_atom", None)):
+                store.delete_atom(sid)
+            else:
+                reg = getattr(store, "reg", None)
+                if reg is not None and hasattr(reg, "delete"):
+                    reg.delete(sid)
 
 
 def install_karmazyn_patches() -> None:
