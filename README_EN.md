@@ -201,11 +201,22 @@ lore-editor --rpc --host 192.168.1.10 --rpc-user writer --rpc-token secret
 # LORE_RPC_USER / LORE_RPC_TOKEN  or user+token in ~/.karmazyn_client.json
 ```
 
+#### RPC auth (0.7.5+)
+
+| Situation | Behaviour |
+|-----------|-----------|
+| **127.0.0.1 / localhost** without token | Allowed (dev / local server without auth) |
+| **Remote** host without user+token | **Error** — fail-fast |
+| Remote server without auth | Set `LORE_RPC_ALLOW_ANON=1` (explicit) |
+| Force auth on loopback | `LORE_RPC_REQUIRE_AUTH=1` |
+
+Trusted LAN/VPN only — do not expose cynober-server on the public internet without a tunnel. Prefer env/profile over `--rpc-token` (visible in process list).
+
 **cynober-db:** prefer **≥ 8.0.2** (world ACL + gossip fixes). Local: `pip install -e path/to/DBase`.
 
 ### Team sync (Team tab)
 
-**cynober_replicate** (push / pull / sync) — again TCP to **cynober-server**, not FTP of `.kafd`. Requires local mode with a saved project file.
+**cynober_replicate** (push / pull / sync) — again TCP to **cynober-server**, not FTP of `.kafd`. Requires local mode with a saved project file. Same auth rules as RPC: non-loopback hosts need user+token (Team panel fields or `LORE_RPC_*`).
 
 ### Common mistakes
 

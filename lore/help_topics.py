@@ -375,6 +375,7 @@ DOMYŚLNIE: BEZ SIECI (offline-first)
 
 PRACA W SIECI (jawnie: --rpc)
   lore-editor --rpc --host ADRES [--port 8080]
+    [--rpc-user U] [--rpc-token T]
 
   Stos połączenia:
     TCP/IP  →  Karmazyn HSS (handshake, szyfrowanie)
@@ -386,16 +387,25 @@ PRACA W SIECI (jawnie: --rpc)
   Po sieci idzie tylko GRAF LORE (świat Cynober). Tekst rozdziałów zostaje
   lokalnie u pisarza.
 
+AUTH (od 0.7.5)
+  Host 127.0.0.1 / localhost — bez tokena dozwolone (dev).
+  Host zdalny bez LORE_RPC_USER + LORE_RPC_TOKEN (lub --rpc-user/--rpc-token)
+    → błąd fail-fast (nie łączy anonimowo).
+  Serwer bez auth na zdalnym hoście: LORE_RPC_ALLOW_ANON=1 (świadomie).
+  Wymuś auth na loopback: LORE_RPC_REQUIRE_AUTH=1.
+  Tylko zaufana sieć LAN / VPN — nie publiczny internet „na pałę”.
+
 SERWER
   Uruchom na hoście z lore:  cynober-server  (port 8080)
   Klient: pakiet cynober-db, moduł cynober_client
 
 PROFIL (opcjonalnie)
-  ~/.karmazyn_client.json — host, port, ustawienia HSS
+  ~/.karmazyn_client.json — host, port, user/token, ustawienia HSS
   lore-editor --rpc --profile nazwa
 
 SYNC ZESPOŁU (zakładka Zespół)
   Osobna ścieżka: cynober_replicate (push / pull / sync).
+  Te same reguły auth co --rpc (user/token w panelu lub LORE_RPC_*).
   Znowu TCP + protokół Cynober/Karmazyn — nie upload FTP/SFTP pliku .kafd
   jako „protokół aplikacji”. Wymaga trybu lokalnego i wcześniejszego zapisu .kafd.
 

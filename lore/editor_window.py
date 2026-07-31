@@ -1040,6 +1040,7 @@ class EditorWindow:
 
         def _tick():
             failed: list[str] = []
+            partial_lore: list[str] = []
             for tab_id, tab in list(self._tabs.items()):
                 if tab.dirty and tab.path:
                     try:
@@ -1052,8 +1053,15 @@ class EditorWindow:
                         )
                         tab.dirty = False
                         self._update_tab_title(tab_id)
-                    except (OSError, Exception) as e:
+                    except OSError as e:
+                        # Plik nie zapisany — zostaw dirty, spróbuj ponownie.
                         failed.append(f"{Path(tab.path).name}: {e}")
+                    except Exception as e:
+                        # Tekst mógł już trafić na dysk (transakcja: tekst → lore).
+                        # Jak w ręcznym zapisie: dirty tekstu False, lore osobno.
+                        tab.dirty = False
+                        self._update_tab_title(tab_id)
+                        partial_lore.append(f"{Path(tab.path).name}: {e}")
             if failed:
                 self._autosave_fail_streak += 1
                 # nie spamuj co minutę — status zawsze, dialog co 3. nieudaną rundę
@@ -1064,10 +1072,26 @@ class EditorWindow:
                         t("status.autosave_failed", error="\n".join(failed[:3])),
                         parent=self.root,
                     )
+            elif partial_lore:
+                self._autosave_fail_streak = 0
+                msg = partial_lore[0]
+                self._status_var.set(
+                    f"Autosave: tekst OK, lore nie — {msg} (Zapisz projekt lore)"
+                )
+                if not getattr(self, "_autosave_partial_warned", False):
+                    self._autosave_partial_warned = True
+                    messagebox.showwarning(
+                        t("app.name"),
+                        "Autosave zapisał tekst, ale nie graf lore.\n"
+                        "Użyj „Zapisz projekt lore” albo Ctrl+S po naprawie.\n\n"
+                        + "\n".join(partial_lore[:3]),
+                        parent=self.root,
+                    )
             else:
                 self._autosave_fail_streak = 0
             self._update_window_title()
-            if not failed:
+            # partial_lore: status już ustawiony; failed: status błędu
+            if not failed and not partial_lore:
                 self._update_status()
             self.root.after(_AUTOSAVE_MS, _tick)
 

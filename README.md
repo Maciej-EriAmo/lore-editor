@@ -206,21 +206,36 @@ Rozdziały nadal leżą **lokalnie** u pisarza; po sieci chodzi tylko **graf lor
 # Na maszynie z lore (np. zespół):
 cynober-server          # nasłuch, domyślnie :8080
 
-# Na laptopie pisarza:
-lore-editor --rpc --host 192.168.1.10 --port 8080
+# Laptop pisarza — host spoza 127.0.0.1 WYMAGA logowania:
+lore-editor --rpc --host 192.168.1.10 --port 8080 \
+  --rpc-user writer --rpc-token sekret
 
-# Serwer z auth.json — podaj login (albo zmienne / profil):
-lore-editor --rpc --host 192.168.1.10 --rpc-user writer --rpc-token sekret
-# LORE_RPC_USER / LORE_RPC_TOKEN  albo  user+token w profilu ~/.karmazyn_client.json
+# Albo zmienne środowiskowe:
+#   LORE_RPC_USER / LORE_RPC_TOKEN
+#   (alias: CYNOBER_USER / CYNOBER_TOKEN)
+# albo user+token w profilu ~/.karmazyn_client.json
 ```
 
+#### Auth RPC (od 0.7.5)
+
+| Sytuacja | Zachowanie |
+|----------|------------|
+| Host **127.0.0.1 / localhost** bez tokena | Dozwolone (dev / lokalny serwer bez auth) |
+| Host **nie-lokalny** bez user+token | **Błąd** — fail-fast (nie łączy „anonimowo”) |
+| Serwer bez auth, ale host zdalny | Ustaw `LORE_RPC_ALLOW_ANON=1` (świadomie) |
+| Wymuś auth także na loopback | `LORE_RPC_REQUIRE_AUTH=1` |
+
 Profil połączenia (host, port, HSS, opcjonalnie `user`/`token`) — `~/.karmazyn_client.json` lub `cynober_client.connect(profile="nazwa")`.
+
+**Uwaga bezpieczeństwa:** transport to protokół Karmazyn (HSS), nie „goły HTTP”, ale to nadal **zaufana sieć LAN** — nie wystawiaj cynober-server na publiczny internet bez tunelu/VPN. Token w `--rpc-token` widać w liście procesów; preferuj env / profil.
 
 **Wymagania cynober-db:** zalecane **≥ 8.0.2** (poprawki ACL na `WYBIERZ ŚWIAT` i GOSSIP). Lokalnie: `pip install -e path/to/DBase`.
 
 ### Sync zespołu (zakładka Zespół)
 
 Osobna ścieżka: **cynober_replicate** (push / pull / sync) — znowu TCP do **cynober-server**, nie zwykły upload plików. Wymaga trybu lokalnego (`.kafd` zapisany na dysku przed wysyłką).
+
+Te same reguły auth co RPC: host poza loopback wymaga **User + Token** (pola w panelu albo `LORE_RPC_*`). Przy pierwszym syncu na zdalny host edytor pokazuje ostrzeżenie o zaufanej sieci.
 
 ### To nie jest (typowe pomyłki)
 
@@ -405,11 +420,11 @@ Wyniki pojawiają się w zakładce Rozdział.
 | **Utwórz punkt przywracania…** | Ręczny snapshot z opisem |
 | **Historia zmian…** | Lista snapshotów, przywracanie |
 
-Snapshot obejmuje `.kafd` i wszystkie rozdziały. Przed przywróceniem bieżący stan jest zapisywany automatycznie.
+Snapshot obejmuje `.kafd` i wszystkie rozdziały. Przed przywróceniem bieżący stan jest zapisywany automatycznie. **Pełne przywrócenie** (domyślnie) usuwa rozdziały `.txt`/`.md`, których nie było w snapshocie — żeby nie mieszać er.
 
 ### Zespół (sync)
 
-Wymaga trybu lokalnego i **cynober-server** (protokół Karmazyn / Cynober replicate — nie zwykły transfer plików). Przyciski: Wyślij / Pobierz / Synchronizuj. Zobacz też **Pomoc → Sieć: Karmazyn i Cynober DB**.
+Wymaga trybu lokalnego i **cynober-server** (protokół Karmazyn / Cynober replicate — nie zwykły transfer plików). Przyciski: Wyślij / Pobierz / Synchronizuj. Host poza 127.0.0.1: **user + token** obowiązkowe. Zobacz też **Pomoc → Sieć: Karmazyn i Cynober DB**.
 
 ## Samodzielna aplikacja (Windows, bez Pythona)
 

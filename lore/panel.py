@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 from typing import Callable, Optional
 
+from lore.backend import _is_loopback_host
 from lore.graph_view import open_graph_window
 from lore.i18n import t
 from lore.store import LoreStore
@@ -562,9 +563,27 @@ class LorePanel(ttk.Frame):
         token = (self._rpc_token_var.get() or "").strip() or None
         return user, token
 
+    def _confirm_remote_team(self, host: str) -> bool:
+        """Ostrzeżenie przy sync poza loopback (zaufana sieć LAN)."""
+        if _is_loopback_host(host):
+            return True
+        return bool(
+            messagebox.askyesno(
+                "Zespół — zdalny host",
+                f"Host „{host}” nie jest lokalny (127.0.0.1).\n\n"
+                "Synchronizacja idzie protokołem Karmazyn do cynober-server.\n"
+                "Używaj tylko zaufanej sieci LAN lub VPN — nie publicznego internetu.\n"
+                "Wymagane: user + token (pola poniżej lub LORE_RPC_USER/TOKEN).\n\n"
+                "Kontynuować?",
+                parent=self,
+            )
+        )
+
     def _sync_wyslij(self) -> None:
         try:
             host, port = self._sync_host_port()
+            if not self._confirm_remote_team(host):
+                return
             user, token = self._sync_credentials()
             self._lore.zapisz()
             wynik = self._lore.zespol().wyslij_na_serwer(
@@ -577,6 +596,8 @@ class LorePanel(ttk.Frame):
     def _sync_pobierz(self) -> None:
         try:
             host, port = self._sync_host_port()
+            if not self._confirm_remote_team(host):
+                return
             user, token = self._sync_credentials()
             wynik = self._lore.zespol().pobierz_z_serwera(
                 host, port, user=user, token=token
@@ -589,6 +610,8 @@ class LorePanel(ttk.Frame):
     def _sync_auto(self) -> None:
         try:
             host, port = self._sync_host_port()
+            if not self._confirm_remote_team(host):
+                return
             user, token = self._sync_credentials()
             self._lore.zapisz()
             wynik = self._lore.zespol().synchronizuj(
