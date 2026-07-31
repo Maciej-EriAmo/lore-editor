@@ -526,11 +526,21 @@ class EditorWindow:
             messagebox.showerror("Błąd zapisu", str(e), parent=self.root)
             return False
         except Exception as e:
+            # Tekst mógł już trafić na dysk — nie twierdź, że cały zapis OK.
             messagebox.showerror(
                 "Zapis",
                 f"Tekst zapisany, ale lore nie: {e}\nSpróbuj „Zapisz projekt lore”.",
                 parent=self.root,
             )
+            tab.dirty = False  # treść pliku jest na dysku
+            tab_id = self._tab_id_for(tab)
+            if tab_id:
+                self._update_tab_title(tab_id)
+            self._update_window_title()
+            self._update_status()
+            if tab.path:
+                self._remember_file(tab.path)
+            return False
 
         tab.dirty = False
         tab_id = self._tab_id_for(tab)
@@ -1072,11 +1082,14 @@ class EditorWindow:
                     return
         zapisz_lore = True
         if self._lore.lore_niezapisane():
-            zapisz_lore = messagebox.askyesno(
+            ans = messagebox.askyesnocancel(
                 t("dialog.unsaved_lore"),
                 t("dialog.unsaved_lore_ask"),
                 parent=self.root,
             )
+            if ans is None:
+                return
+            zapisz_lore = bool(ans)
             if not zapisz_lore and not messagebox.askokcancel(
                 t("dialog.close_no_save"),
                 t("dialog.close_no_save_ask"),

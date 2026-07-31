@@ -37,6 +37,10 @@ Kiedy powstają snapshoty
   • Pierwsze otwarcie istniejącego projektu: „Stan początkowy”
 
 Przywracanie: menu Lore → Historia zmian…
+  Domyślnie PEŁNY restore: wraca treść z snapshota i usuwa rozdziały
+  .txt/.md, których nie było w tej kopii (żeby nie mieszać er).
+  Przed przywróceniem bieżący stan jest zapisywany automatycznie.
+
 Pomoc w edytorze: F1 → temat „Historia zmian”.
 
 BACKUP
@@ -245,7 +249,14 @@ class LoreHistoria:
             self._last_auto = now
         return info
 
-    def przywroc(self, snap_id: str) -> SnapshotInfo:
+    def przywroc(self, snap_id: str, *, strict: bool = True) -> SnapshotInfo:
+        """
+        Przywróć snapshot.
+
+        strict=True: pełny restore — usuwa .txt/.md z projektu, których nie ma
+        w snapshocie (uniknięcie „sierot” po nowszych rozdziałach).
+        strict=False: tylko nadpisuje pliki obecne w snapshocie (merge).
+        """
         src = self._snap_dir / snap_id
         if not src.is_dir():
             raise FileNotFoundError(f"Nie ma snapshotu „{snap_id}”.")
@@ -258,13 +269,24 @@ class LoreHistoria:
             shutil.copy2(snap_kafd, kafd)
 
         chapters = src / "rozdzialy"
+        restored_rels: set[str] = set()
         if chapters.is_dir():
             for path in chapters.rglob("*"):
                 if path.is_file():
                     rel = path.relative_to(chapters)
+                    restored_rels.add(str(rel).replace("\\", "/"))
                     target = self._root / rel
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(path, target)
+
+        if strict:
+            for path in _iter_rozdzialy(self._root):
+                rel = str(path.relative_to(self._root)).replace("\\", "/")
+                if rel not in restored_rels:
+                    try:
+                        path.unlink()
+                    except OSError:
+                        pass
 
         marker = src / ".lore-project"
         if marker.is_file():

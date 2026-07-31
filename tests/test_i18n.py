@@ -1,12 +1,19 @@
-"""Locale packs + i18n API."""
+"""Locale packs + i18n API + dirty/ROZWIŃ regressions."""
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+from lore.backend import LoreBackendError, connect_rpc, query_may_mutate
 from lore.i18n import discover_and_load, get_locale, list_locales, set_locale, t
 from lore.i18n.core import load_locale_dir
-from pathlib import Path
+from lore.store import LoreStore
+from lore.team_sync import ZespolLore
+from lore.paths import ProjectPaths
 
 
 class TestI18n(unittest.TestCase):
@@ -44,6 +51,22 @@ class TestI18n(unittest.TestCase):
 
 
 class TestDirtyOnRead(unittest.TestCase):
+    def test_rozwin_syntax_ok(self) -> None:
+        """ROZWIŃ (nie ROZWIJ) — lokalny unfold bez błędu składni."""
+        with tempfile.TemporaryDirectory() as tmp:
+            s = LoreStore.open_local(project="rozwin_probe", project_dir=tmp)
+            p = Path(tmp) / "r01.txt"
+            p.write_text("x", encoding="utf-8")
+            doc = s.otworz_dokument(str(p))
+            s.zapisz(historia_auto=False)
+            row = s._run_line(f'ROZWIŃ "{doc}" PROMIEŃ 1', strict=False)
+            self.assertEqual(row.get("status"), "ok", row)
+            self.assertEqual(row.get("action"), "UNFOLD")
+            # Alias historyczny też działa lokalnie
+            row2 = s._run_line(f'ROZWIJ "{doc}" PROMIEŃ 1', strict=False)
+            self.assertEqual(row2.get("status"), "ok", row2)
+            s.close(zapisz_lore=False)
+
     def test_find_does_not_mark_dirty(self) -> None:
         import tempfile
 
@@ -107,6 +130,84 @@ class TestDirtyOnRead(unittest.TestCase):
         finally:
             if prev is not None:
                 os.environ["CYNOBER_WORLDS_DIR"] = prev
+
+    def test_query_may_mutate_rozwin(self) -> None:
+        self.assertTrue(
+            query_may_mutate(
+                'ROZWIŃ "X" PROMIEŃ 1',
+                [{"status": "ok", "action": "UNFOLD"}],
+            )
+        )
+
+
+class TestAuthAndTeam(unittest.TestCase):
+    def test_remote_rpc_requires_credentials(self) -> None:
+        env_keys = (
+            "LORE_RPC_USER",
+            "LORE_RPC_TOKEN",
+            "CYNOBER_USER",
+            "CYNOBER_TOKEN",
+            "LORE_RPC_ALLOW_ANON",
+            "LORE_RPC_REQUIRE_AUTH",
+        )
+        saved = {k: os.environ.pop(k, None) for k in env_keys}
+        try:
+            with patch("cynober_client.connect", return_value=MagicMock()):
+                with self.assertRaises(LoreBackendError):
+                    connect_rpc("192.168.1.50", 8080, login=True)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def test_loopback_rpc_allows_anon(self) -> None:
+        env_keys = (
+            "LORE_RPC_USER",
+            "LORE_RPC_TOKEN",
+            "CYNOBER_USER",
+            "CYNOBER_TOKEN",
+            "LORE_RPC_ALLOW_ANON",
+            "LORE_RPC_REQUIRE_AUTH",
+        )
+        saved = {k: os.environ.pop(k, None) for k in env_keys}
+        try:
+            with patch("cynober_client.connect", return_value=MagicMock()) as conn:
+                backend = connect_rpc("127.0.0.1", 8080, login=True)
+                conn.assert_called()
+                self.assertIsNotNone(backend)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def test_team_remote_requires_auth(self) -> None:
+        env_keys = (
+            "LORE_RPC_USER",
+            "LORE_RPC_TOKEN",
+            "CYNOBER_USER",
+            "CYNOBER_TOKEN",
+            "LORE_RPC_ALLOW_ANON",
+            "LORE_RPC_REQUIRE_AUTH",
+        )
+        saved = {k: os.environ.pop(k, None) for k in env_keys}
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                paths = ProjectPaths.resolve("team_probe", tmp)
+                z = ZespolLore(paths)
+                with self.assertRaises(ValueError):
+                    z.ustaw_serwer("192.168.1.10", 8080)
+                # z creds OK (tylko rejestracja peera, bez sieci)
+                z.ustaw_serwer("192.168.1.10", 8080, user="w", token="t")
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
 
 if __name__ == "__main__":

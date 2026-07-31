@@ -178,11 +178,21 @@ class LoreStore:
     def lista_historii(self) -> List[SnapshotInfo]:
         return self._historia.lista()
 
-    def przywroc_historie(self, snap_id: str) -> SnapshotInfo:
-        """Przywraca snapshot; bieżący stan zapisywany jest automatycznie."""
+    def przywroc_historie(
+        self,
+        snap_id: str,
+        *,
+        strict: bool = True,
+    ) -> SnapshotInfo:
+        """
+        Przywraca snapshot; bieżący stan zapisywany jest automatycznie.
+
+        strict=True (domyślnie): usuwa rozdziały .txt/.md spoza snapshota
+        (pełny powrót w czasie). strict=False: tylko nadpisuje pliki ze snapshota.
+        """
         if not self.tryb_lokalny():
             raise LoreBackendError("Historia wymaga trybu lokalnego.")
-        info = self._historia.przywroc(snap_id)
+        info = self._historia.przywroc(snap_id, strict=strict)
         backend = self._backend
         if hasattr(backend, "reload"):
             backend.reload()  # type: ignore[attr-defined]
@@ -195,7 +205,7 @@ class LoreStore:
         """Czy graf lore ma zmiany niezsynchronizowane z .kafd."""
         if self._dirty:
             return True
-        # desync: mutacja tylko na world.dirty (np. ROZWIJ / inject poza API)
+        # desync: mutacja tylko na world.dirty (np. ROZWIŃ / inject poza API)
         backend = self._backend
         world = getattr(backend, "_world", None)
         if world is not None and getattr(world, "dirty", False):
@@ -478,7 +488,7 @@ class LoreStore:
 
     def sasiedzi(self, encja: str, promien: int = 2) -> List[str]:
         name = self._sanitize_entity(encja)
-        self._run_line(f'ROZWIJ "{_esc(name)}" PROMIEŃ {int(promien)}', strict=False)
+        self._run_line(f'ROZWIŃ "{_esc(name)}" PROMIEŃ {int(promien)}', strict=False)
         out: set[str] = set()
         for rel in REL_TO_GRAPH.values():
             row = self._run_line(
@@ -529,7 +539,7 @@ class LoreStore:
             if cur.get(POLE_PLIK) != plik:
                 self.ustaw(doc, POLE_PLIK, plik)
         self._opened_doc = doc
-        self._run_line(f'ROZWIJ "{_esc(doc)}" PROMIEŃ 1', strict=False)
+        self._run_line(f'ROZWIŃ "{_esc(doc)}" PROMIEŃ 1', strict=False)
         return doc
 
     def powiaz_z_dokumentem(

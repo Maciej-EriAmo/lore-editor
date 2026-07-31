@@ -93,6 +93,40 @@ class TestLoreHistoria(unittest.TestCase):
         finally:
             history_mod.MAX_SNAPSHOTS = old_max
 
+    def test_strict_restore_usuwa_sieroty(self):
+        """Pełny restore usuwa rozdziały spoza snapshota."""
+        root = self._paths.root
+        a = root / "a.txt"
+        a.write_text("A", encoding="utf-8")
+        (root / f"{self._project}.kafd").write_bytes(b"kafd-v1")
+        hist = LoreHistoria(root, self._project)
+        hist.inicjalizuj()
+        snap = hist.utworz(label="s1", force=True)
+        self.assertIsNotNone(snap)
+        b = root / "b.txt"
+        b.write_text("NEW", encoding="utf-8")
+        a.write_text("A-mod", encoding="utf-8")
+
+        hist.przywroc(snap.id, strict=True)
+        self.assertEqual(a.read_text(encoding="utf-8"), "A")
+        self.assertFalse(b.exists())
+
+    def test_merge_restore_zostawia_nowe_pliki(self):
+        root = self._paths.root
+        a = root / "a.txt"
+        a.write_text("A", encoding="utf-8")
+        (root / f"{self._project}.kafd").write_bytes(b"kafd-v1")
+        hist = LoreHistoria(root, self._project)
+        hist.inicjalizuj()
+        snap = hist.utworz(label="s1", force=True)
+        self.assertIsNotNone(snap)
+        b = root / "b.txt"
+        b.write_text("NEW", encoding="utf-8")
+
+        hist.przywroc(snap.id, strict=False)
+        self.assertEqual(a.read_text(encoding="utf-8"), "A")
+        self.assertTrue(b.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

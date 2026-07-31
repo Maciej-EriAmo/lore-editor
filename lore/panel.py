@@ -4,6 +4,7 @@ Panel lore dla edytora — Tkinter, bez KarminQL.
 
 from __future__ import annotations
 
+import os
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 from typing import Callable, Optional
@@ -238,12 +239,32 @@ class LorePanel(ttk.Frame):
             ttk.Entry(team_row, textvariable=self._host_var, width=12).pack(side="left", fill="x", expand=True, padx=4)
             ttk.Label(team_row, text=":").pack(side="left")
             ttk.Entry(team_row, textvariable=self._port_var, width=5).pack(side="left", padx=2)
+            cred_row = ttk.Frame(tab_team)
+            cred_row.pack(fill="x", pady=2)
+            self._rpc_user_var = tk.StringVar(value=os.environ.get("LORE_RPC_USER", ""))
+            self._rpc_token_var = tk.StringVar(value=os.environ.get("LORE_RPC_TOKEN", ""))
+            ttk.Label(cred_row, text="User").pack(side="left")
+            ttk.Entry(cred_row, textvariable=self._rpc_user_var, width=8).pack(
+                side="left", padx=2
+            )
+            ttk.Label(cred_row, text="Token").pack(side="left")
+            ttk.Entry(cred_row, textvariable=self._rpc_token_var, width=10, show="*").pack(
+                side="left", fill="x", expand=True, padx=2
+            )
+            ttk.Label(
+                tab_team,
+                text="Host poza 127.0.0.1 wymaga user+token (lub LORE_RPC_*).",
+                style="Dim.TLabel",
+                wraplength=240,
+            ).pack(anchor="w", pady=(0, 4))
             ttk.Button(tab_team, text=t("panel.push"), command=self._sync_wyslij).pack(fill="x", pady=3)
             ttk.Button(tab_team, text=t("panel.pull"), command=self._sync_pobierz).pack(fill="x", pady=3)
             ttk.Button(tab_team, text=t("panel.sync"), command=self._sync_auto).pack(fill="x", pady=3)
         else:
             self._host_var = tk.StringVar()
             self._port_var = tk.StringVar()
+            self._rpc_user_var = tk.StringVar()
+            self._rpc_token_var = tk.StringVar()
 
     def _sciezka_rozdzialu(self) -> str:
         path = self._get_file()
@@ -536,11 +557,19 @@ class LorePanel(ttk.Frame):
             raise ValueError("Port musi być liczbą.") from e
         return host, port
 
+    def _sync_credentials(self) -> tuple[str | None, str | None]:
+        user = (self._rpc_user_var.get() or "").strip() or None
+        token = (self._rpc_token_var.get() or "").strip() or None
+        return user, token
+
     def _sync_wyslij(self) -> None:
         try:
             host, port = self._sync_host_port()
+            user, token = self._sync_credentials()
             self._lore.zapisz()
-            wynik = self._lore.zespol().wyslij_na_serwer(host, port)
+            wynik = self._lore.zespol().wyslij_na_serwer(
+                host, port, user=user, token=token
+            )
             messagebox.showinfo("Zespół", wynik.komunikat, parent=self)
         except Exception as e:
             messagebox.showerror("Zespół", str(e), parent=self)
@@ -548,7 +577,10 @@ class LorePanel(ttk.Frame):
     def _sync_pobierz(self) -> None:
         try:
             host, port = self._sync_host_port()
-            wynik = self._lore.zespol().pobierz_z_serwera(host, port)
+            user, token = self._sync_credentials()
+            wynik = self._lore.zespol().pobierz_z_serwera(
+                host, port, user=user, token=token
+            )
             self.odswiez()
             messagebox.showinfo("Zespół", wynik.komunikat, parent=self)
         except Exception as e:
@@ -557,8 +589,11 @@ class LorePanel(ttk.Frame):
     def _sync_auto(self) -> None:
         try:
             host, port = self._sync_host_port()
+            user, token = self._sync_credentials()
             self._lore.zapisz()
-            wynik = self._lore.zespol().synchronizuj(host, port)
+            wynik = self._lore.zespol().synchronizuj(
+                host, port, user=user, token=token
+            )
             self.odswiez()
             messagebox.showinfo("Zespół", wynik.komunikat, parent=self)
         except Exception as e:

@@ -34,7 +34,11 @@ class HistoryWindow(tk.Toplevel):
         ttk.Label(hdr, text="Historia projektu", style="Head.TLabel").pack(anchor="w")
         ttk.Label(
             hdr,
-            text="Snapshoty: lore (.kafd) + rozdziały (.txt/.md). Przywrócenie tworzy kopię bieżącego stanu.",
+            text=(
+                "Snapshoty: lore (.kafd) + rozdziały (.txt/.md). "
+                "Przywrócenie zapisuje bieżący stan, potem wraca do snapshota "
+                "(pełny tryb usuwa rozdziały spoza kopii)."
+            ),
             style="Dim.TLabel",
             wraplength=480,
         ).pack(anchor="w", pady=(4, 0))
@@ -128,12 +132,14 @@ class HistoryWindow(tk.Toplevel):
         if not messagebox.askyesno(
             "Przywróć projekt",
             f"Przywrócić stan z:\n{snap.data_utworzenia()} — {snap.label}?\n\n"
-            "Bieżący stan zostanie zapisany jako osobny snapshot.",
+            "Bieżący stan zostanie zapisany jako osobny snapshot.\n\n"
+            "Pełne przywrócenie usuwa rozdziały .txt/.md, których nie było "
+            "w tym snapshocie (żeby nie mieszać starych i nowych plików).",
             parent=self,
         ):
             return
         try:
-            self._lore.przywroc_historie(snap.id)
+            self._lore.przywroc_historie(snap.id, strict=True)
         except Exception as e:
             messagebox.showerror("Historia", str(e), parent=self)
             return
@@ -142,7 +148,7 @@ class HistoryWindow(tk.Toplevel):
         self._reload()
         messagebox.showinfo(
             "Historia",
-            "Przywrócono. Otwarte karty rozdziałów zostały odświeżone z dysku.",
+            "Przywrócono (pełny restore). Otwarte karty odświeżone z dysku.",
             parent=self,
         )
 

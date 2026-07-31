@@ -36,13 +36,19 @@ _WORLD_SELECT_RE = re.compile(
     r'^WYBIERZ\s+ŚWIAT\s+"([^"]+)"(?:\s+CEL\s+"([^"]+)"(?:\s+PROMIEŃ\s+(\d+))?)?$',
     re.IGNORECASE,
 )
+# Kanon lore-editor: ROZWIŃ. Aliasy: ROZWIN / ROZWIJ (cynober-server).
+_UNFOLD_RE = re.compile(
+    r'^ROZWI(?:Ń|N|J)\s+"([^"]+)"(?:\s+PROMIE(?:Ń|N)\s+(\d+))?$',
+    re.IGNORECASE,
+)
 
 # Prefiksy mutujące stan świata — odczyty NIE powinny ustawiać dirty.
 _MUTATING_PREFIXES = (
     "UTRWAL", "WSTRZYKNIJ", "ZAKTUALIZUJ", "USUŃ", "POŁĄCZ", "ROZŁĄCZ",
     "UTWÓRZ", "PRZEMIANUJ", "IMPORT", "EKSPORT", "SCAL", "BEGIN", "COMMIT",
     "ROLLBACK", "TICK", "WCZYTAJ", "ZAPISZ", "UTWÓRZ INDEKS", "USUŃ INDEKS",
-    "UTWÓRZ WIDOK", "USUŃ WIDOK", "WYMAGAJ", "USUŃ WYMAGANIE", "ROZWIJ",
+    "UTWÓRZ WIDOK", "USUŃ WIDOK", "WYMAGAJ", "USUŃ WYMAGANIE",
+    "ROZWIŃ", "ROZWIJ",  # ROZWIŃ = kanon; ROZWIJ = alias serwera
     "GOSSIP IMPORT", "GOSSIP SYNC",
 )
 
@@ -156,6 +162,25 @@ class LocalLoreBackend:
             saved = self._registry.flush(world.name)
             return [{"status": "ok", "action": "FLUSH_WORLD", **saved}]
 
+        m = _UNFOLD_RE.match(line)
+        if m:
+            world = self._attach()
+            seed = m.group(1)
+            rad = int(m.group(2)) if m.group(2) else None
+            from cynober_worlds import unfold_runtime
+
+            with world.runtime.lock:
+                unfold = unfold_runtime(
+                    world.runtime,
+                    [seed],
+                    radius=rad,
+                )
+            # Dirty tylko gdy faktycznie wczytano zwinięte atomy (lazy pack).
+            loaded = int(unfold.get("unfolded_atoms") or 0)
+            if loaded > 0:
+                self._registry.mark_dirty(world.name)
+            return [{"status": "ok", "action": "UNFOLD", **unfold}]
+
         if upper == "STATYSTYKI":
             world = self._attach()
             stats = world.runtime.engine.api.store.stats()
@@ -242,7 +267,9 @@ class RpcLoreBackend:
         self._auth_user = user
 
     def execute(self, script: str, *, strict: bool = False) -> List[dict]:
-        payload = self._client.query(script)
+        # cynober-server rozumie historyczne ROZWIJ; lokalnie kanon to ROZWIŃ
+        wire = _normalize_rpc_script(script)
+        payload = self._client.query(wire)
         results, transport_err = self._parse(payload)
         if transport_err:
             raise LoreBackendError(transport_err)
@@ -256,6 +283,24 @@ class RpcLoreBackend:
     def close(self, *, flush: bool = False) -> None:
         # flush ignorowany — stan świata jest po stronie serwera (ZAPISZ ŚWIAT w store.zapisz)
         self._client.close()
+
+
+def _normalize_rpc_script(script: str) -> str:
+    """ROZWIŃ → ROZWIJ na drucie (regex serwera cynober)."""
+    line = (script or "").strip()
+    m = _UNFOLD_RE.match(line)
+    if not m:
+        return script
+    seed = m.group(1)
+    rad = m.group(2)
+    if rad:
+        return f'ROZWIJ "{_esc(seed)}" PROMIEŃ {int(rad)}'
+    return f'ROZWIJ "{_esc(seed)}"'
+
+
+def _is_loopback_host(host: str) -> bool:
+    h = (host or "").strip().lower()
+    return h in ("127.0.0.1", "localhost", "::1", "0.0.0.0")
 
 
 def default_lore_worlds_dir(project_name: str = "default") -> Path:
@@ -307,7 +352,17 @@ def connect_rpc(
     user: Optional[str] = None,
     token: Optional[str] = None,
     login: bool = True,
+    require_auth: Optional[bool] = None,
 ) -> RpcLoreBackend:
+    """
+    Połączenie RPC z cynober-server.
+
+    Auth:
+      • gdy są user+token → ZALOGUJ
+      • host nie-lokalny bez creds → błąd (fail-fast), chyba że
+        LORE_RPC_ALLOW_ANON=1 albo require_auth=False
+      • loopback bez creds → dozwolone (dev), chyba że LORE_RPC_REQUIRE_AUTH=1
+    """
     from cynober_client import connect
 
     client = connect(profile=profile) if profile else connect(host, port)
@@ -316,4 +371,21 @@ def connect_rpc(
         u, t = _resolve_rpc_credentials(user=user, token=token, profile=profile)
         if u and t:
             backend.login(u, t)
+        else:
+            env_require = os.environ.get("LORE_RPC_REQUIRE_AUTH", "").strip().lower() in (
+                "1", "true", "yes",
+            )
+            env_allow_anon = os.environ.get("LORE_RPC_ALLOW_ANON", "").strip().lower() in (
+                "1", "true", "yes",
+            )
+            if require_auth is None:
+                must = env_require or (not _is_loopback_host(host) and not env_allow_anon)
+            else:
+                must = bool(require_auth)
+            if must:
+                raise LoreBackendError(
+                    "RPC: wymagane logowanie (LORE_RPC_USER + LORE_RPC_TOKEN "
+                    "lub --rpc-user / --rpc-token). "
+                    "Dla serwera bez auth: LORE_RPC_ALLOW_ANON=1."
+                )
     return backend
