@@ -2,7 +2,7 @@
 
 **[English → LANGUAGE_PLUGINS.md](LANGUAGE_PLUGINS.md)**
 
-**Wersja aplikacji:** 0.7.4+  
+**Wersja aplikacji:** 0.7.5+  
 **Moduł:** `lore/i18n/` · wbudowane: `lore/locales/en/` · przykład: `plugins/locales/tlh/`
 
 Lore Editor trzyma **język UI** osobno od protokołu KarminQL i wartości w `.kafd`.  
@@ -220,6 +220,15 @@ lore-editor --locale en
 - Odczyty KarminQL nie oznaczają świata dirty
 - Autosave zgłasza błędy (status + ostrzeżenie)
 - Izolacja katalogów projektów bez globalnego `CYNOBER_WORLDS_DIR`
+
+## Zmiany w 0.7.5 (skrót, nie tylko i18n)
+
+- RPC / Zespół: host poza loopback **wymaga** user+token (fail-fast); `LORE_RPC_ALLOW_ANON=1` świadomie
+- Panel Zespół: pola User/Token + ostrzeżenie przy zdalnym hoście
+- Historia: pełne przywrócenie (strict) usuwa rozdziały spoza snapshota
+- Lokalny unfold: komenda **ROZWIŃ** (alias ROZWIJ na cynober-server)
+- Autosave: tekst OK / lore nie — spójnie z ręcznym zapisem
+- Build standalone: `LoreEditor-0.7.5-win64` (`scripts/build_nuitka.ps1`)
 
 ---
 

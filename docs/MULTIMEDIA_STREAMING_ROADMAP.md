@@ -170,4 +170,4 @@ Difference: media do **not** live beside lore — they are **part of the same Cy
 
 ---
 
-*Roadmap last updated: 2026-07-10 · English translation for Lore Editor 0.7.4+*
+*Roadmap last updated: 2026-07-10 · English translation for Lore Editor 0.7.5+ (roadmap content unchanged)*

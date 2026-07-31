@@ -349,6 +349,10 @@ PRZYWRACANIE
   Bieżący stan zapisywany jest automatycznie przed przywróceniem.
   Otwarte karty rozdziałów przeładowują się z dysku.
 
+  Pełne przywrócenie (domyślnie, od 0.7.5): wraca treść ze snapshota
+  i USUWA rozdziały .txt/.md, których nie było w tej kopii — żeby nie
+  mieszać starych i nowych plików. (API: strict=False = tylko nadpisanie.)
+
 ROTACJA
 Przechowywane jest do 40 ostatnich snapshotów.
 

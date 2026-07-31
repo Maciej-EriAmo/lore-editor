@@ -326,7 +326,7 @@ typ:Postać "ally"
 
 ### History
 
-Manual restore points and snapshot list under **Lore** menu. Snapshots cover `.kafd` + all chapters.
+Manual restore points and snapshot list under **Lore** menu. Snapshots cover `.kafd` + all chapters. **Full restore** (default, 0.7.5+) also removes chapter files that were not in the snapshot (no orphan mix of eras).
 
 ### Team
 
@@ -354,6 +354,7 @@ python -m unittest discover -s tests -v
 
 | File | Topic |
 |------|--------|
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release notes (0.7.5, …) |
 | [docs/LANGUAGE_PLUGINS.md](docs/LANGUAGE_PLUGINS.md) | Locale packs (EN) |
 | [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | Locale packs (PL) |
 | [docs/SPELLING_AND_DICTIONARY.md](docs/SPELLING_AND_DICTIONARY.md) | Spelling (EN) |
