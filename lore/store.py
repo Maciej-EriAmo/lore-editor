@@ -801,10 +801,10 @@ class LoreStore:
         parent: Any = None,
     ) -> Dict[str, Any]:
         """
-        Faza 5: podgląd media (Luneta-style dla obrazów, player dla a/v).
+        Faza 5: podgląd na **płótnie atomów** (jak Luneta):
 
-        Lokalnie: karmazyn_media_preview.open_preview.
-        RPC: get_media → temp Store atom → preview.
+        PNG/GIF/klatki wideo — ThermalFramePump; malowane tylko dirty/hot.
+        RPC: get_media → temp Store → to samo płótno.
         """
         name = self._sanitize_entity(encja)
         role = (rola or "portret").strip() or "portret"
