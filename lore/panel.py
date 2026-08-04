@@ -201,6 +201,9 @@ class LorePanel(ttk.Frame):
         ttk.Button(act, text=t("panel.unlink"), command=self._odlacz).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.edit_entry"), command=self._dlg_edytuj).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.attach_media"), command=self._dlg_media).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.preview_media"), command=self._dlg_preview_media).pack(
+            fill="x", pady=1
+        )
         ttk.Button(act, text=t("panel.delete_entry"), command=self._usun_wpis).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.map"), command=self._mapa).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.refresh"), command=self.odswiez).pack(fill="x", pady=1)
@@ -502,6 +505,53 @@ class LorePanel(ttk.Frame):
                 ),
                 parent=self,
             )
+        except Exception as e:
+            messagebox.showerror(t("menu.lore"), str(e), parent=self)
+
+    def _dlg_preview_media(self) -> None:
+        """Faza 5: podgląd media (obrazy w Tk jak Luneta; a/v — player systemowy)."""
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo(t("menu.lore"), t("panel.select_entry"), parent=self)
+            return
+        media = []
+        try:
+            media = self._lore.lista_mediow(name)
+        except Exception:
+            media = []
+        role = "portret"
+        if media:
+            if len(media) == 1:
+                role = media[0].get("binding") or "portret"
+            else:
+                roles = ", ".join(m.get("binding") or "?" for m in media)
+                role = simpledialog.askstring(
+                    t("panel.preview_media"),
+                    t("panel.media_role_prompt") + f"\n({roles})",
+                    initialvalue=media[0].get("binding") or "portret",
+                    parent=self,
+                )
+                if role is None:
+                    return
+                role = (role or "portret").strip() or "portret"
+        else:
+            role = simpledialog.askstring(
+                t("panel.preview_media"),
+                t("panel.media_role_prompt"),
+                initialvalue="portret",
+                parent=self,
+            )
+            if role is None:
+                return
+            role = (role or "portret").strip() or "portret"
+        try:
+            res = self._lore.podglad_media(name, role, parent=self.winfo_toplevel())
+            if not res.get("ok"):
+                messagebox.showwarning(
+                    t("menu.lore"),
+                    res.get("message") or t("panel.preview_failed"),
+                    parent=self,
+                )
         except Exception as e:
             messagebox.showerror(t("menu.lore"), str(e), parent=self)
 

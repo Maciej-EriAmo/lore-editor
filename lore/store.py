@@ -780,6 +780,58 @@ class LoreStore:
                 return km.get_bytes(store, ref.atom_id)
         raise LoreBackendError(f"Brak media „{role}” przy „{name}”.")
 
+    def _resolve_media_atom_id(self, encja: str, rola: str) -> str:
+        name = self._sanitize_entity(encja)
+        role = (rola or "").strip()
+        if isinstance(self._backend, RpcLoreBackend):
+            return f"m_{name}_{role}".replace(" ", "_")[:48]
+        import karmazyn_media as km
+
+        store = self._phi_store()
+        for ref in km.list_bindings(store, name):
+            if ref.binding == role:
+                return ref.atom_id
+        raise LoreBackendError(f"Brak media „{role}” przy „{name}”.")
+
+    def podglad_media(
+        self,
+        encja: str,
+        rola: str = "portret",
+        *,
+        parent: Any = None,
+    ) -> Dict[str, Any]:
+        """
+        Faza 5: podgląd media (Luneta-style dla obrazów, player dla a/v).
+
+        Lokalnie: karmazyn_media_preview.open_preview.
+        RPC: get_media → temp Store atom → preview.
+        """
+        name = self._sanitize_entity(encja)
+        role = (rola or "portret").strip() or "portret"
+        atom_id = self._resolve_media_atom_id(name, role)
+
+        if isinstance(self._backend, RpcLoreBackend):
+            client = getattr(self._backend, "_client", None)
+            if client is None or not callable(getattr(client, "get_media", None)):
+                raise LoreBackendError("RPC bez get_media — zaktualizuj cynober-db.")
+            data, mime, _ = client.get_media(atom_id)
+            import karmazyn_kernel as kernel
+            import karmazyn_media as km
+            from karmazyn_media_preview import open_preview
+
+            tmp = kernel.Store(thermal=True)
+            ref = km.attach_bytes(
+                tmp, name, role, data, mime=mime or "application/octet-stream"
+            )
+            ok, msg = open_preview(tmp, ref.atom_id, parent=parent)
+            return {"ok": ok, "message": msg, "atom_id": atom_id, "rpc": True, "mime": mime}
+
+        from karmazyn_media_preview import open_preview
+
+        store = self._phi_store()
+        ok, msg = open_preview(store, atom_id, parent=parent)
+        return {"ok": ok, "message": msg, "atom_id": atom_id, "rpc": False}
+
     # ── Wyszukiwanie ──────────────────────────────────────────────────────
 
     def zapytaj(self, tekst: str) -> List[Dict[str, Any]]:
