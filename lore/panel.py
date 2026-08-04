@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from typing import Callable, Optional
 
 from lore.backend import _is_loopback_host
@@ -200,6 +200,7 @@ class LorePanel(ttk.Frame):
         ttk.Button(act, text=t("panel.connect"), command=self._dlg_polacz).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.unlink"), command=self._odlacz).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.edit_entry"), command=self._dlg_edytuj).pack(fill="x", pady=1)
+        ttk.Button(act, text=t("panel.attach_media"), command=self._dlg_media).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.delete_entry"), command=self._usun_wpis).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.map"), command=self._mapa).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.refresh"), command=self.odswiez).pack(fill="x", pady=1)
@@ -326,6 +327,17 @@ class LorePanel(ttk.Frame):
                 if k.startswith("_") or k in ("BĄBEL", POLE_STANY) or v in (None, ""):
                     continue
                 lines.append(f"{k}: {v}")
+            try:
+                media = self._lore.lista_mediow(name)
+                if media:
+                    lines.append("— media —")
+                    for m in media:
+                        lines.append(
+                            f"  · {m.get('binding')}: {m.get('mime')} "
+                            f"({m.get('size')} B)"
+                        )
+            except Exception:
+                pass
             self._set_detail("\n".join(lines))
         except Exception as e:
             self._set_detail(str(e))
@@ -448,6 +460,50 @@ class LorePanel(ttk.Frame):
         typ = str(data.get("Typ") or TypLore.INNE.value)
         fields = pola_do_edycji(typ)
         _EditEntityDialog(self, self._lore, name, typ, fields, data)
+
+    def _dlg_media(self) -> None:
+        """Faza 1: dołącz plik (portret/klip) do wybranej encji."""
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo(t("menu.lore"), t("panel.select_entry"), parent=self)
+            return
+        path = filedialog.askopenfilename(
+            parent=self,
+            title=t("panel.attach_media"),
+            filetypes=[
+                ("Obrazy", "*.png;*.jpg;*.jpeg;*.gif;*.webp"),
+                ("Audio", "*.wav;*.mp3;*.ogg"),
+                ("Wszystkie", "*.*"),
+            ],
+        )
+        if not path:
+            return
+        role = simpledialog.askstring(
+            t("panel.attach_media"),
+            t("panel.media_role_prompt"),
+            initialvalue="portret",
+            parent=self,
+        )
+        if role is None:
+            return
+        role = (role or "portret").strip() or "portret"
+        try:
+            info = self._lore.dodaj_media(name, role, path)
+            self._lore.zapisz()
+            self.odswiez()
+            self._on_select()
+            messagebox.showinfo(
+                t("menu.lore"),
+                t(
+                    "panel.media_attached",
+                    role=info.get("binding", role),
+                    size=info.get("size", 0),
+                    mime=info.get("mime", ""),
+                ),
+                parent=self,
+            )
+        except Exception as e:
+            messagebox.showerror(t("menu.lore"), str(e), parent=self)
 
     def _po_edycji_wpisu(self, name: str) -> None:
         """Odśwież listę i ponownie pokaż zaktualizowany podgląd."""

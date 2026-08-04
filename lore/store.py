@@ -604,6 +604,182 @@ class LoreStore:
             self.polacz(name, self._opened_doc, "koliguje z")
         return name
 
+    # ── Multimedia (Faza 1 — lokalnie; RPC przez put_media) ────────────────
+
+    def _phi_store(self) -> Any:
+        """Surowy Store Karmazyna (tylko LocalLoreBackend)."""
+        if not self.tryb_lokalny():
+            raise LoreBackendError(
+                "Bezpośredni Store wymaga trybu lokalnego. "
+                "W --rpc użyj dodaj_media (KAFS) lub pracuj lokalnie."
+            )
+        backend = self._backend
+        world = backend._attach()  # type: ignore[attr-defined]
+        rt = world.runtime
+        if hasattr(rt, "engine") and hasattr(rt.engine, "api"):
+            return rt.engine.api.store
+        return rt.store
+
+    def dodaj_media(
+        self,
+        encja: str,
+        rola: str,
+        sciezka_lub_bajty: Union[str, Path, bytes, bytearray],
+        *,
+        mime: Optional[str] = None,
+        force_stream: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Dołącz plik/bajty do encji lore (binding w bąblu).
+
+        Lokalnie: karmazyn_media.attach_* + dirty.
+        RPC: CynoberClient.put_media (wymaga kafs-stream).
+        """
+        name = self._sanitize_entity(encja)
+        role = (rola or "").strip() or "portret"
+        if not self.encja_istnieje(name) and self.tryb_lokalny():
+            # auto-utwórz postać gdy brak
+            self.dodaj_postac(name)
+
+        if isinstance(self._backend, RpcLoreBackend):
+            client = getattr(self._backend, "_client", None)
+            if client is None or not callable(getattr(client, "put_media", None)):
+                raise LoreBackendError("Klient RPC bez put_media — zaktualizuj cynober-db.")
+            if isinstance(sciezka_lub_bajty, (bytes, bytearray)):
+                data = bytes(sciezka_lub_bajty)
+                use_mime = mime or "application/octet-stream"
+            else:
+                p = Path(sciezka_lub_bajty).expanduser()
+                if not p.is_file():
+                    raise LoreBackendError(f"Brak pliku: {p}")
+                data = p.read_bytes()
+                if mime:
+                    use_mime = mime
+                else:
+                    import mimetypes
+
+                    use_mime = mimetypes.guess_type(str(p))[0] or "application/octet-stream"
+            atom_id = f"m_{name}_{role}".replace(" ", "_")[:48]
+            end = client.put_media(
+                atom_id,
+                data,
+                mime=use_mime,
+                bubble=name,
+                binding=role,
+            )
+            if end.get("status") != "ok":
+                raise LoreBackendError(end.get("message") or "put_media nieudane")
+            self._oznacz_brudne()
+            return {
+                "atom_id": atom_id,
+                "binding": role,
+                "mime": use_mime,
+                "size": len(data),
+                "bubble": name,
+                "rpc": True,
+            }
+
+        import karmazyn_media as km
+
+        store = self._phi_store()
+        if isinstance(sciezka_lub_bajty, (bytes, bytearray)):
+            ref = km.attach_bytes(
+                store,
+                name,
+                role,
+                bytes(sciezka_lub_bajty),
+                mime=mime or "application/octet-stream",
+                as_root=True,
+                force_stream=force_stream,
+            )
+        else:
+            ref = km.attach_file(
+                store,
+                name,
+                role,
+                sciezka_lub_bajty,
+                mime=mime,
+                as_root=True,
+                force_stream=force_stream,
+            )
+        self._oznacz_brudne()
+        return {
+            "atom_id": ref.atom_id,
+            "binding": ref.binding,
+            "mime": ref.mime,
+            "size": ref.size,
+            "bubble": ref.bubble_label,
+            "cas12": ref.cas12,
+            "rpc": False,
+            "stream": km.is_stream_atom(store.get_atom(ref.atom_id)),
+        }
+
+    def lista_mediow(self, encja: str) -> List[Dict[str, Any]]:
+        """Lista bindingów mediów przy encji (lokalnie)."""
+        name = self._sanitize_entity(encja)
+        if isinstance(self._backend, RpcLoreBackend):
+            # RPC: brak pełnej listy bez KarminQL — zwróć puste + komunikat w polu
+            return []
+        import karmazyn_media as km
+
+        store = self._phi_store()
+        out: List[Dict[str, Any]] = []
+        for ref in km.list_bindings(store, name):
+            out.append({
+                "atom_id": ref.atom_id,
+                "binding": ref.binding,
+                "mime": ref.mime,
+                "size": ref.size,
+                "cas12": ref.cas12,
+            })
+        return out
+
+    def eksport_media(
+        self,
+        encja: str,
+        rola: str,
+        sciezka: str | Path,
+    ) -> int:
+        """Zapisz medium bindingu do pliku. Zwraca bajty."""
+        name = self._sanitize_entity(encja)
+        role = (rola or "").strip()
+        if isinstance(self._backend, RpcLoreBackend):
+            client = getattr(self._backend, "_client", None)
+            if client is None or not callable(getattr(client, "get_media", None)):
+                raise LoreBackendError("Klient RPC bez get_media.")
+            # szukaj id po konwencji put
+            atom_id = f"m_{name}_{role}".replace(" ", "_")[:48]
+            data, _mime, _meta = client.get_media(atom_id)
+            p = Path(sciezka).expanduser()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(data)
+            return len(data)
+
+        import karmazyn_media as km
+
+        store = self._phi_store()
+        for ref in km.list_bindings(store, name):
+            if ref.binding == role:
+                return km.export_to_path(store, ref.atom_id, sciezka)
+        raise LoreBackendError(f"Brak media „{role}” przy „{name}”.")
+
+    def odczyt_media(self, encja: str, rola: str) -> Tuple[bytes, str]:
+        """(bytes, mime) dla bindingu."""
+        name = self._sanitize_entity(encja)
+        role = (rola or "").strip()
+        if isinstance(self._backend, RpcLoreBackend):
+            client = getattr(self._backend, "_client", None)
+            atom_id = f"m_{name}_{role}".replace(" ", "_")[:48]
+            data, mime, _ = client.get_media(atom_id)
+            return data, mime
+        import karmazyn_media as km
+
+        store = self._phi_store()
+        for ref in km.list_bindings(store, name):
+            if ref.binding == role:
+                return km.get_bytes(store, ref.atom_id)
+        raise LoreBackendError(f"Brak media „{role}” przy „{name}”.")
+
     # ── Wyszukiwanie ──────────────────────────────────────────────────────
 
     def zapytaj(self, tekst: str) -> List[Dict[str, Any]]:

@@ -32,7 +32,10 @@ Docelowo:
 | **HSL prismy** | `karmazyn_hsl` | Capability tokens — dziś `karminql:query`, miejsce na rozszerzenia |
 | **Gossip** | `cynober_gossip.py` | Sync phi-space; BubbleVFS (`.soul`) — **przyszłość** |
 
-**Luka:** tunel RPC nie przenosi jeszcze KAFS; multimedia w Lore Editorze = pliki lokalne lub przyszłe atomy w `.kafd`, nie strumień sieciowy.
+**Stan 2026-08:** cynober-db **≥ 8.1** ma KAFS MEDIA PUT/GET + A_STREAM lokalnie.  
+Lore Editor: `LoreStore.dodaj_media` / panel **Dołącz plik** (Faza 1).  
+RPC: `put_media` gdy klient ma `kafs-stream`.  
+**Luka pozostała:** Faza 5 preview stream UI w `--rpc`, Faza 6 replicate media index.
 
 ---
 

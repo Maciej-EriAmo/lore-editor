@@ -36,6 +36,30 @@ class TestLoreStoreLocal(unittest.TestCase):
         lore.zapisz()
         lore.close()
 
+    def test_dodaj_media_i_eksport(self):
+        lore = self._store()
+        lore.dodaj_postac("Anna")
+        png = b"\x89PNG\r\n\x1a\n" + b"lore-media-test"
+        info = lore.dodaj_media("Anna", "portret", png, mime="image/png")
+        self.assertEqual(info["binding"], "portret")
+        self.assertEqual(info["size"], len(png))
+        listed = lore.lista_mediow("Anna")
+        self.assertTrue(any(m["binding"] == "portret" for m in listed))
+        data, mime = lore.odczyt_media("Anna", "portret")
+        self.assertEqual(data, png)
+        self.assertEqual(mime, "image/png")
+        out = Path(self._tmp.name) / "export_anna.png"
+        n = lore.eksport_media("Anna", "portret", out)
+        self.assertEqual(n, len(png))
+        self.assertEqual(out.read_bytes(), png)
+        lore.zapisz()
+        # restart store — media w .kafd
+        lore.close()
+        lore2 = self._store()
+        data2, _ = lore2.odczyt_media("Anna", "portret")
+        self.assertEqual(data2, png)
+        lore2.close()
+
     def test_dokument_i_pomysl(self):
         lore = self._store()
         path = str(self._paths.root / "rozdzial_01.txt")
