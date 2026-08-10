@@ -437,7 +437,7 @@ TO NIE JEST (typowe pomyłki)
     plików; nie zastępuje komunikacji Karmazyn w trybie --rpc lub Zespół.
 
 BAZA DANYCH
-  Dedykowany silnik: Cynober DB (cynober-db >= 8.0.1).
+  Dedykowany silnik: Cynober DB (cynober-db >= 8.2.2).
   Format na dysku: .kafd = Lore Pack w vfs Karmazyn.
   Zapytania: KarminQL (ukryte pod API LoreStore dla pisarza).
 """,
@@ -447,7 +447,7 @@ _topic(
     "O programie",
     f"""
 Lore Editor v{__version__}
-Silnik lore: Cynober DB (cynober-db >= 8.0.1) — magazyn atomów Karmazyn (.kafd)
+Silnik lore: Cynober DB (cynober-db >= 8.2.2) — magazyn atomów Karmazyn (.kafd)
 Repozytorium: github.com/Maciej-EriAmo/lore-editor
 
 Funkcje: kontekst czasowy lore, zapytania semantyczne, termodynamika wpisów,
@@ -465,7 +465,8 @@ Instalacja (pisarz — bez Pythona):
   Powieść: %USERPROFILE%\\dokumenty\\lore (nie folder instalacji)
 
 Instalacja (dev — z Pythonem):
-  pip install "cynober-db>=8.0.1"
+  pip install -U "cynober-db>=8.2.2"
+  # Windows bez PATH: python -m cynober_server
   pip install -e .
   lore-editor
   albo: .\\scripts\\install_writer.ps1

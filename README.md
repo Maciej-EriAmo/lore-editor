@@ -13,7 +13,7 @@ Graf lore opiera się na **dedykowanej bazie Cynober DB** (format atomów **Karm
 ## Instalacja
 
 ```bash
-pip install "cynober-db>=8.0.1"
+pip install -U "cynober-db>=8.2.2"
 pip install -e .
 ```
 
@@ -197,14 +197,16 @@ Włączasz jawnie: `lore-editor --rpc --host ADRES [--port 8080]`.
 | Sesja | **Karmazyn HSL** (`karmazyn_hsl`) — capability RPC |
 | Ramki | `_send_frame` / `_recv_frame` — **nie** surowy tekst HTTP |
 | Payload | JSON z polem `"query"` = linia **KarminQL** |
-| Wersja protokołu | `Cynober-Secure-1.2` (klient `cynober_client`) |
-| Serwer | **cynober-server** — ten sam stos co w cynober-db |
+| Wersja protokołu | `Cynober-Secure-1.2` (wire; pakiet **cynober-db ≥ 8.2.2**) |
+| Sesja | HSL + KPC (serwer); klient: `session_info()`, media **KAFS** |
+| Serwer | `python -m cynober_server` lub `cynober-server` (gdy Scripts w PATH) |
 
-Rozdziały nadal leżą **lokalnie** u pisarza; po sieci chodzi tylko **graf lore** (operacje na świecie Cynober).
+Rozdziały nadal leżą **lokalnie** u pisarza; po sieci chodzi tylko **graf lore** (operacje na świecie Cynober) + opcjonalnie media (portrety) przez KAFS.
 
 ```bash
-# Na maszynie z lore (np. zespół):
-cynober-server          # nasłuch, domyślnie :8080
+# Na maszynie z bazą (zespół) — Windows często bez PATH do Scripts:
+python -m cynober_server          # zalecane
+# cynober-server                  # tylko gdy exe jest w PATH
 
 # Laptop pisarza — host spoza 127.0.0.1 WYMAGA logowania:
 lore-editor --rpc --host 192.168.1.10 --port 8080 \
@@ -482,7 +484,7 @@ python -m unittest discover -s tests -v
 | PL | EN | Temat |
 |----|-----|--------|
 | [README.md](README.md) | [README_EN.md](README_EN.md) | Główna dokumentacja |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | — | Historia wersji (0.7.5, …) |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | — | Historia wersji (**0.7.6**, …) |
 | [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | [docs/LANGUAGE_PLUGINS.md](docs/LANGUAGE_PLUGINS.md) | Locale packs, klucze `ui.json` |
 | [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md) | [docs/SPELLING_AND_DICTIONARY.md](docs/SPELLING_AND_DICTIONARY.md) | Słownik nazw, F7, SJP / EN |
 | [docs/KIERUNEK_MULTIMEDIA_STREAMING.md](docs/KIERUNEK_MULTIMEDIA_STREAMING.md) | [docs/MULTIMEDIA_STREAMING_ROADMAP.md](docs/MULTIMEDIA_STREAMING_ROADMAP.md) | Multimedia / KAFS (plan) |

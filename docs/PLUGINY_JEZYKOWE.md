@@ -2,7 +2,7 @@
 
 **[English → LANGUAGE_PLUGINS.md](LANGUAGE_PLUGINS.md)**
 
-**Wersja aplikacji:** 0.7.5+  
+**Wersja aplikacji:** 0.7.6+ (i18n od 0.7.5)  
 **Moduł:** `lore/i18n/` · wbudowane: `lore/locales/en/` · przykład: `plugins/locales/tlh/`
 
 Lore Editor trzyma **język UI** osobno od protokołu KarminQL i wartości w `.kafd`.  
@@ -228,7 +228,7 @@ lore-editor --locale en
 - Historia: pełne przywrócenie (strict) usuwa rozdziały spoza snapshota
 - Lokalny unfold: komenda **ROZWIŃ** (alias ROZWIJ na cynober-server)
 - Autosave: tekst OK / lore nie — spójnie z ręcznym zapisem
-- Build standalone: `LoreEditor-0.7.5-win64` (`scripts/build_nuitka.ps1`)
+- Build standalone: `LoreEditor-0.7.6-win64` (gdy przebudujesz: `scripts/build_nuitka.ps1`; dystrybucja 0.7.5 nadal w `dist/` do rebuildu)
 
 ---
 

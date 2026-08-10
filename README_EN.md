@@ -13,7 +13,7 @@ The lore graph lives in a **dedicated Cynober DB** (**Karmazyn** atom format, `.
 ## Install
 
 ```bash
-pip install "cynober-db>=8.0.1"
+pip install -U "cynober-db>=8.2.2"
 pip install -e .
 ```
 
@@ -212,7 +212,9 @@ lore-editor --rpc --host 192.168.1.10 --rpc-user writer --rpc-token secret
 
 Trusted LAN/VPN only — do not expose cynober-server on the public internet without a tunnel. Prefer env/profile over `--rpc-token` (visible in process list).
 
-**cynober-db:** prefer **≥ 8.0.2** (world ACL + gossip fixes). Local: `pip install -e path/to/DBase`.
+**cynober-db:** require **≥ 8.2.2** (KAFS media, KPC/HSL, `session_info`, health l0/kpc). Local: `pip install -e path/to/DBase`.
+
+If `cynober-server` is not on PATH (Windows): `python -m cynober_server`.
 
 ### Team sync (Team tab)
 
@@ -354,7 +356,7 @@ python -m unittest discover -s tests -v
 
 | File | Topic |
 |------|--------|
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release notes (0.7.5, …) |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release notes (**0.7.6**, …) |
 | [docs/LANGUAGE_PLUGINS.md](docs/LANGUAGE_PLUGINS.md) | Locale packs (EN) |
 | [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | Locale packs (PL) |
 | [docs/SPELLING_AND_DICTIONARY.md](docs/SPELLING_AND_DICTIONARY.md) | Spelling (EN) |
