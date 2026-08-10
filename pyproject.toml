@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lore-editor"
-version = "0.7.5"
+version = "0.7.6"
 description = "Edytor lore dla pisarzy — kontekst czasowy, historia zmian, zapytania semantyczne"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Maciej Mazur" }]
 dependencies = [
-    "cynober-db>=8.0.1",
+    "cynober-db>=8.2.2",
     "python-docx>=1.1.0",
     "spylls>=0.1.7",
 ]

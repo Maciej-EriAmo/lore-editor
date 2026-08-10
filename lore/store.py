@@ -642,9 +642,25 @@ class LoreStore:
             self.dodaj_postac(name)
 
         if isinstance(self._backend, RpcLoreBackend):
-            client = getattr(self._backend, "_client", None)
+            client = getattr(self._backend, "client", None) or getattr(
+                self._backend, "_client", None
+            )
             if client is None or not callable(getattr(client, "put_media", None)):
-                raise LoreBackendError("Klient RPC bez put_media — zaktualizuj cynober-db.")
+                raise LoreBackendError(
+                    "Klient RPC bez put_media — zainstaluj cynober-db≥8.0 "
+                    "(pip install -e path/to/DBase)."
+                )
+            if not getattr(client, "kafs_enabled", False):
+                info = {}
+                if callable(getattr(self._backend, "session_info", None)):
+                    info = self._backend.session_info()
+                raise LoreBackendError(
+                    "Sesja bez KAFS (kafs-stream) — nie można wgrać grafiki na serwer. "
+                    f"session={info or 'n/a'}. Zsynchronizuj wersję serwera i klienta."
+                )
+            # jak lokalnie: utwórz postać gdy brak (RPC)
+            if not self.encja_istnieje(name):
+                self.dodaj_postac(name)
             if isinstance(sciezka_lub_bajty, (bytes, bytearray)):
                 data = bytes(sciezka_lub_bajty)
                 use_mime = mime or "application/octet-stream"
@@ -660,15 +676,19 @@ class LoreStore:
 
                     use_mime = mimetypes.guess_type(str(p))[0] or "application/octet-stream"
             atom_id = f"m_{name}_{role}".replace(" ", "_")[:48]
-            end = client.put_media(
-                atom_id,
-                data,
-                mime=use_mime,
-                bubble=name,
-                binding=role,
-            )
-            if end.get("status") != "ok":
-                raise LoreBackendError(end.get("message") or "put_media nieudane")
+            try:
+                end = client.put_media(
+                    atom_id,
+                    data,
+                    mime=use_mime,
+                    bubble=name,
+                    binding=role,
+                )
+            except Exception as e:
+                raise LoreBackendError(f"put_media ({name}/{role}): {e}") from e
+            if not isinstance(end, dict) or end.get("status") != "ok":
+                msg = end.get("message") if isinstance(end, dict) else None
+                raise LoreBackendError(msg or "put_media nieudane")
             self._oznacz_brudne()
             return {
                 "atom_id": atom_id,

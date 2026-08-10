@@ -50,6 +50,7 @@ _MUTATING_PREFIXES = (
     "UTWÓRZ WIDOK", "USUŃ WIDOK", "WYMAGAJ", "USUŃ WYMAGANIE",
     "ROZWIŃ", "ROZWIJ",  # ROZWIŃ = kanon; ROZWIJ = alias serwera
     "GOSSIP IMPORT", "GOSSIP SYNC",
+    "MEDIA PUT", "MEDIA DELETE", "MEDIA USUŃ",
 )
 
 _READ_ONLY_PREFIXES = (
@@ -240,8 +241,8 @@ class LocalLoreBackend:
 
 class RpcLoreBackend:
     """
-    Lore na cynober-server (TCP + protokół Karmazyn, nie zwykły HTTP/SQL).
-    Rozdziały nadal lokalne na dysku pisarza.
+    Lore na cynober-server (TCP L0 + protokół Karmazyn HSS/HSL, nie HTTP/SQL).
+    Rozdziały nadal lokalne na dysku pisarza. Media: put_media/get_media (KAFS).
     """
 
     def __init__(self, client: Any):
@@ -250,6 +251,25 @@ class RpcLoreBackend:
         self._client = client
         self._parse = parse_response_payload
         self._auth_user: str | None = None
+
+    @property
+    def client(self) -> Any:
+        """SDK CynoberClient (session_info, put_media, query)."""
+        return self._client
+
+    def session_info(self) -> dict:
+        """Metadane tunelu (L0, KAFS, HSL, KPC) — wymaga cynober-db z session_info()."""
+        fn = getattr(self._client, "session_info", None)
+        if callable(fn):
+            return dict(fn())
+        return {
+            "connected": True,
+            "kafs_enabled": bool(getattr(self._client, "kafs_enabled", False)),
+            "legacy_client": True,
+        }
+
+    def kafs_enabled(self) -> bool:
+        return bool(getattr(self._client, "kafs_enabled", False))
 
     def login(self, user: str, token: str) -> None:
         """ZALOGUJ na serwerze z włączonym auth.json."""
@@ -268,8 +288,16 @@ class RpcLoreBackend:
 
     def execute(self, script: str, *, strict: bool = False) -> List[dict]:
         # cynober-server rozumie historyczne ROZWIJ; lokalnie kanon to ROZWIŃ
+        if not getattr(self._client, "sock", None) and not callable(
+            getattr(self._client, "query", None)
+        ):
+            raise LoreBackendError("RPC: brak aktywnego klienta.")
         wire = _normalize_rpc_script(script)
-        payload = self._client.query(wire)
+        try:
+            payload = self._client.query(wire)
+        except Exception as e:
+            # CynoberClientError i błędy tunelu → czytelny komunikat lore
+            raise LoreBackendError(f"Tunel RPC: {e}") from e
         results, transport_err = self._parse(payload)
         if transport_err:
             raise LoreBackendError(transport_err)
@@ -282,7 +310,10 @@ class RpcLoreBackend:
 
     def close(self, *, flush: bool = False) -> None:
         # flush ignorowany — stan świata jest po stronie serwera (ZAPISZ ŚWIAT w store.zapisz)
-        self._client.close()
+        try:
+            self._client.close()
+        except Exception:
+            pass
 
 
 def _normalize_rpc_script(script: str) -> str:
@@ -363,10 +394,31 @@ def connect_rpc(
         LORE_RPC_ALLOW_ANON=1 albo require_auth=False
       • loopback bez creds → dozwolone (dev), chyba że LORE_RPC_REQUIRE_AUTH=1
     """
-    from cynober_client import connect
+    from cynober_client import CynoberClientError, connect
 
-    client = connect(profile=profile) if profile else connect(host, port)
+    try:
+        client = connect(profile=profile) if profile else connect(host, port)
+    except CynoberClientError as e:
+        raise LoreBackendError(
+            f"Nie połączono z cynober-server ({host}:{port}): {e}. "
+            "Sprawdź czy serwer działa, profil HSS i wersję protokołu (Cynober-Secure-1.2)."
+        ) from e
+    except OSError as e:
+        raise LoreBackendError(
+            f"Sieć: nie można dotrzeć do {host}:{port}: {e}"
+        ) from e
+
     backend = RpcLoreBackend(client)
+    # Media (portrety) wymagają KAFS — ostrzeżenie wcześnie, nie przy pierwszym pliku
+    if not backend.kafs_enabled():
+        import warnings
+
+        warnings.warn(
+            "Sesja RPC bez kafs-stream — dołączanie grafik (put_media) nie zadziała. "
+            "Zaktualizuj cynober-db (serwer + klient).",
+            UserWarning,
+            stacklevel=2,
+        )
     if login:
         u, t = _resolve_rpc_credentials(user=user, token=token, profile=profile)
         if u and t:

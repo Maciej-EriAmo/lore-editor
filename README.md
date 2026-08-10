@@ -229,7 +229,7 @@ Profil połączenia (host, port, HSS, opcjonalnie `user`/`token`) — `~/.karmaz
 
 **Uwaga bezpieczeństwa:** transport to protokół Karmazyn (HSS), nie „goły HTTP”, ale to nadal **zaufana sieć LAN** — nie wystawiaj cynober-server na publiczny internet bez tunelu/VPN. Token w `--rpc-token` widać w liście procesów; preferuj env / profil.
 
-**Wymagania cynober-db:** zalecane **≥ 8.0.2** (poprawki ACL na `WYBIERZ ŚWIAT` i GOSSIP). Lokalnie: `pip install -e path/to/DBase`.
+**Wymagania cynober-db:** **≥ 8.2.2** (KAFS media, KPC/HSL, `session_info`, ZDROWIE l0/kpc). Lokalnie: `pip install -e path/to/DBase`.
 
 ### Sync zespołu (zakładka Zespół)
 

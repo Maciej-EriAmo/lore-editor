@@ -2,6 +2,14 @@
 
 Format: skrót dla deweloperów i pisarzy. Szczegóły w README / F1.
 
+## 0.7.6
+
+### Sieć / media (cynober-db 8.2+)
+- **RPC** — czytelne błędy połączenia (HSS/HSL); wczesne ostrzeżenie gdy brak **kafs-stream** (grafiki).
+- **dodaj_media (RPC)** — auto-utwórz postać; `session_info` / KAFS check przed put_media.
+- **RpcLoreBackend.client** + `session_info()` (L0=TCP, HSL, KPC residual z klienta).
+- Zależność: `cynober-db>=8.2.2` (KPC w HSL, ZDROWIE l0/kpc, lepsze put_media errors).
+
 ## 0.7.5
 
 ### Naprawy i hardening
