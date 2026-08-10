@@ -735,15 +735,37 @@ class LoreStore:
         }
 
     def lista_mediow(self, encja: str) -> List[Dict[str, Any]]:
-        """Lista bindingów mediów przy encji (lokalnie)."""
+        """Lista bindingów mediów przy encji (lokalnie lub RPC MEDIA LIST)."""
         name = self._sanitize_entity(encja)
         if isinstance(self._backend, RpcLoreBackend):
-            # RPC: brak pełnej listy bez KarminQL — zwróć puste + komunikat w polu
-            return []
+            from lore.backend import _esc
+
+            try:
+                rows = self._backend.execute(
+                    f'MEDIA LIST "{_esc(name)}"', strict=False
+                )
+            except LoreBackendError:
+                return []
+            row = rows[-1] if rows else {}
+            if row.get("status") != "ok":
+                return []
+            media = row.get("media") or []
+            out: List[Dict[str, Any]] = []
+            for m in media:
+                if not isinstance(m, dict):
+                    continue
+                out.append({
+                    "atom_id": m.get("atom_id") or "",
+                    "binding": m.get("binding") or "",
+                    "mime": m.get("mime") or "",
+                    "size": int(m.get("size") or 0),
+                    "cas12": m.get("cas12") or "",
+                })
+            return out
         import karmazyn_media as km
 
         store = self._phi_store()
-        out: List[Dict[str, Any]] = []
+        out = []
         for ref in km.list_bindings(store, name):
             out.append({
                 "atom_id": ref.atom_id,
@@ -764,11 +786,12 @@ class LoreStore:
         name = self._sanitize_entity(encja)
         role = (rola or "").strip()
         if isinstance(self._backend, RpcLoreBackend):
-            client = getattr(self._backend, "_client", None)
+            client = getattr(self._backend, "client", None) or getattr(
+                self._backend, "_client", None
+            )
             if client is None or not callable(getattr(client, "get_media", None)):
                 raise LoreBackendError("Klient RPC bez get_media.")
-            # szukaj id po konwencji put
-            atom_id = f"m_{name}_{role}".replace(" ", "_")[:48]
+            atom_id = self._resolve_media_atom_id(name, role)
             data, _mime, _meta = client.get_media(atom_id)
             p = Path(sciezka).expanduser()
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -788,8 +811,10 @@ class LoreStore:
         name = self._sanitize_entity(encja)
         role = (rola or "").strip()
         if isinstance(self._backend, RpcLoreBackend):
-            client = getattr(self._backend, "_client", None)
-            atom_id = f"m_{name}_{role}".replace(" ", "_")[:48]
+            client = getattr(self._backend, "client", None) or getattr(
+                self._backend, "_client", None
+            )
+            atom_id = self._resolve_media_atom_id(name, role)
             data, mime, _ = client.get_media(atom_id)
             return data, mime
         import karmazyn_media as km
@@ -803,14 +828,13 @@ class LoreStore:
     def _resolve_media_atom_id(self, encja: str, rola: str) -> str:
         name = self._sanitize_entity(encja)
         role = (rola or "").strip()
+        # najpierw lista (lokalnie lub MEDIA LIST) — prawdziwe atom_id
+        for m in self.lista_mediow(name):
+            if (m.get("binding") or "") == role and m.get("atom_id"):
+                return str(m["atom_id"])
         if isinstance(self._backend, RpcLoreBackend):
+            # konwencja put_media z lore (gdy lista pusta / stary serwer)
             return f"m_{name}_{role}".replace(" ", "_")[:48]
-        import karmazyn_media as km
-
-        store = self._phi_store()
-        for ref in km.list_bindings(store, name):
-            if ref.binding == role:
-                return ref.atom_id
         raise LoreBackendError(f"Brak media „{role}” przy „{name}”.")
 
     def podglad_media(
@@ -831,7 +855,9 @@ class LoreStore:
         atom_id = self._resolve_media_atom_id(name, role)
 
         if isinstance(self._backend, RpcLoreBackend):
-            client = getattr(self._backend, "_client", None)
+            client = getattr(self._backend, "client", None) or getattr(
+                self._backend, "_client", None
+            )
             if client is None or not callable(getattr(client, "get_media", None)):
                 raise LoreBackendError("RPC bez get_media — zaktualizuj cynober-db.")
             data, mime, _ = client.get_media(atom_id)

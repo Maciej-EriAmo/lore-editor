@@ -448,6 +448,14 @@ BAZA DANYCH
   Dedykowany silnik: Cynober DB (cynober-db >= 8.2.2).
   Format na dysku: .kafd = Lore Pack w vfs Karmazyn.
   Zapytania: KarminQL (ukryte pod API LoreStore dla pisarza).
+
+GRAFIKI / MEDIA (teraz)
+  Panel lore: «Dołącz plik…» (portret/klip) · «Podgląd media…»
+  Lokalnie: plik → atom w bąblu encji (karmazyn_media), zapis w .kafd
+  RPC (--rpc): wymaga cynober-server z KAFS (kafs-stream);
+    upload put_media, lista MEDIA LIST, podgląd get_media
+  Formaty: PNG/JPEG/GIF/WebP (+ audio); wideo — player systemowy
+  Rola bindingu domyślnie: portret
 """,
 )
 

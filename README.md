@@ -229,6 +229,18 @@ lore-editor --rpc --host 192.168.1.10 --port 8080 \
 # albo user+token w profilu ~/.karmazyn_client.json
 ```
 
+### Grafiki (media) — stan teraz
+
+| | Lokalnie | `--rpc` (cynober-server) |
+|--|----------|---------------------------|
+| **Dołącz plik** | Panel → Dołącz plik… | to samo → `put_media` (KAFS) |
+| **Gdzie leży** | atom w bąblu postaci, `.kafd` | świat na serwerze |
+| **Lista** | bindingi w bąblu | `MEDIA LIST "Encja"` |
+| **Podgląd** | płótno atomów / player | `get_media` → to samo UI |
+| **Wymagania** | cynober-db | **≥ 8.2.2**, sesja z **kafs-stream** |
+
+Bez KAFS (stary klient/serwer) upload grafiki po sieci **nie** zadziała — zobaczysz ostrzeżenie przy connect.
+
 #### Auth RPC (od 0.7.5)
 
 | Sytuacja | Zachowanie |
