@@ -192,16 +192,27 @@ Włączasz jawnie: `lore-editor --rpc --host ADRES [--port 8080]`.
 
 | Warstwa | Co to jest |
 |---------|------------|
-| Transport | TCP/IP (`socket`, domyślnie port **8080**) |
-| Handshake | **Karmazyn HSS** (`karmazyn_handshake`) — negocjacja, szyfrowanie |
-| Sesja | **Karmazyn HSL** (`karmazyn_hsl`) — capability RPC |
-| Ramki | `_send_frame` / `_recv_frame` — **nie** surowy tekst HTTP |
-| Payload | JSON z polem `"query"` = linia **KarminQL** |
-| Wersja protokołu | `Cynober-Secure-1.2` (wire; pakiet **cynober-db ≥ 8.2.2**) |
-| Sesja | HSL + KPC (serwer); klient: `session_info()`, media **KAFS** |
-| Serwer | `python -m cynober_server` lub `cynober-server` (gdy Scripts w PATH) |
+| Transport (L0 dziś) | **TCP** (`socket`, port **8080**) — hydraulika / Carrier |
+| Handshake | **Karmazyn HSS** — KEM na klasycznym kanale |
+| Sesja | **HSL** (+ KPC na serwerze) — Φ², capability, epoch |
+| Ramki | binarne length-prefix — **nie** HTTP |
+| Payload | JSON `"query"` = **KarminQL**; media = **KAFS** |
+| Wire | `Cynober-Secure-1.2` (pakiet **cynober-db ≥ 8.2.2**) |
+| Serwer | `python -m cynober_server` (lub `cynober-server` w PATH) |
 
-Rozdziały nadal leżą **lokalnie** u pisarza; po sieci chodzi tylko **graf lore** (operacje na świecie Cynober) + opcjonalnie media (portrety) przez KAFS.
+#### Co się stanie, gdy L0 przejdzie na docelowe (QKD)
+
+Dziś połączenie to **nakładka na TCP**. Docelowo (HSL Paper §6.4) L0 ma dostarczać seed z **łącza kwantowego** (\(k_{\mathrm{QKD}}\)), a nie (tylko) z HSS po sockecie:
+
+| Dla pisarza / lore-editor | Dla warstwy sieci |
+|---------------------------|-------------------|
+| **Bez zmian:** `--rpc`, te same komendy, panel, media | Seed sesji z QKD (adapter / hardware) |
+| Nadal `connect` → świat → KarminQL / put_media | HSS-KEM na TCP schodzi na fallback |
+| Nie ma drugiego „protokołu lore” | HSL + RPC **bez zmian API** |
+
+Czyli: zmieniasz **skąd bierze się zaufanie do sesji**, nie sposób pisania w edytorze. Szczegóły: cynober-db `docs/SESSION_L0_KPC.md` i podręcznik §3 (L0 Carrier).
+
+Rozdziały nadal leżą **lokalnie** u pisarza; po sieci chodzi **graf lore** + opcjonalnie media (KAFS).
 
 ```bash
 # Na maszynie z bazą (zespół) — Windows często bez PATH do Scripts:

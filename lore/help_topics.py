@@ -381,15 +381,22 @@ PRACA W SIECI (jawnie: --rpc)
   lore-editor --rpc --host ADRES [--port 8080]
     [--rpc-user U] [--rpc-token T]
 
-  Stos połączenia:
-    TCP/IP  →  Karmazyn HSS (handshake, szyfrowanie)
-            →  Karmazyn HSL (sesja RPC)
-            →  ramki _send_frame / _recv_frame
-            →  JSON { "query": "linia KarminQL" }
-            →  cynober-server (Cynober-Secure-1.2)
+  Stos połączenia (L0 DZIŚ = TCP):
+    TCP :8080  →  Karmazyn HSS (KEM na klasycznym kanale)
+               →  opc. PSK / seed QKD (symulacja)
+               →  HSL + KPC (sesja, Φ², epoch)
+               →  ramki binarne + JSON { "query": KarminQL }
+               →  cynober-server (Cynober-Secure-1.2)
+               →  media: KAFS (put_media / get_media)
 
-  Po sieci idzie tylko GRAF LORE (świat Cynober). Tekst rozdziałów zostaje
-  lokalnie u pisarza.
+  Po sieci idzie GRAF LORE (+ opc. media). Tekst rozdziałów zostaje lokalnie.
+
+  GDY L0 STANIE SIĘ DOCELOWE (sieć kwantowa / QKD — HSL Paper §6.4):
+    • Zmienia się ŹRÓDŁO SEEDA sesji: łącze QKD → k_QKD (nie tylko HSS po TCP).
+    • HSS-KEM na TCP schodzi na fallback / hybrydę.
+    • HSL, KarminQL, --rpc, panel lore, put_media — BEZ ZMIANY API dla pisarza.
+    • Diagnostyka: l0_carrier przestaje być samym "tcp".
+    • Szczegóły: cynober-db docs/SESSION_L0_KPC.md i podręcznik §3.
 
 AUTH (od 0.7.5)
   Host 127.0.0.1 / localhost — bez tokena dozwolone (dev).
@@ -400,8 +407,9 @@ AUTH (od 0.7.5)
   Tylko zaufana sieć LAN / VPN — nie publiczny internet „na pałę”.
 
 SERWER
-  Uruchom na hoście z lore:  cynober-server  (port 8080)
-  Klient: pakiet cynober-db, moduł cynober_client
+  python -m cynober_server   (port 8080; zalecane na Windows bez PATH)
+  albo: cynober-server       (gdy Scripts w PATH)
+  Klient: cynober-db >= 8.2.2
 
 PROFIL (opcjonalnie)
   ~/.karmazyn_client.json — host, port, user/token, ustawienia HSS

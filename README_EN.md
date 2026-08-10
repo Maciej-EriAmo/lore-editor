@@ -181,18 +181,20 @@ Enable explicitly: `lore-editor --rpc --host ADDR [--port 8080]`.
 
 | Layer | What |
 |-------|------|
-| Transport | TCP/IP (default **8080**) |
-| Handshake | **Karmazyn HSS** |
-| Session | **Karmazyn HSL** (RPC capability) |
-| Framing | Binary length-prefix frames — **not** HTTP text |
-| Payload | JSON `"query"` = KarminQL line |
-| Protocol version | `Cynober-Secure-1.2` (`cynober_client`) |
-| Server | **cynober-server** |
+| Transport (L0 today) | **TCP** (port **8080**) — carrier / plumbing only |
+| Handshake | **Karmazyn HSS** KEM on the classical channel |
+| Session | **HSL** (+ KPC on server) |
+| Framing | Binary frames — **not** HTTP |
+| Payload | KarminQL JSON; media via **KAFS** |
+| Wire | `Cynober-Secure-1.2` (**cynober-db ≥ 8.2.2**) |
+| Server | `python -m cynober_server` (or `cynober-server` if on PATH) |
 
-Chapters stay **local**; only the **lore graph** goes over the wire.
+**When L0 becomes the target (QKD):** the **session seed** comes from a quantum link (\(k_{\mathrm{QKD}}\), HSL paper §6.4), not only from HSS-over-TCP. **Lore Editor and KarminQL stay the same** (`--rpc`, queries, media). You change how the tunnel is born, not the writing UI. See cynober-db `docs/SESSION_L0_KPC.md`.
+
+Chapters stay **local**; only the **lore graph** (and optional media) goes over the wire.
 
 ```bash
-cynober-server
+python -m cynober_server
 
 lore-editor --rpc --host 192.168.1.10 --port 8080
 
