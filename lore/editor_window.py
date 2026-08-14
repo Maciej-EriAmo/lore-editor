@@ -171,7 +171,7 @@ class EditorWindow:
         if tab is None:
             self._status_var.set(t("app.ready"))
             return
-        content = tab.text.get("1.0", "end-1c")
+        content = self._tab_content(tab)
         words = _word_count(content)
         enc = tab.encoding
         dirty = f" · {t('app.unsaved')}" if tab.dirty else ""
@@ -289,6 +289,55 @@ class EditorWindow:
         lore_m.add_separator()
         lore_m.add_command(label=t("lore.snapshot"), command=self._create_snapshot)
         lore_m.add_command(label=t("lore.history"), command=self._show_history)
+        lore_m.add_separator()
+        lore_m.add_command(
+            label=t("media.attach_image"),
+            command=lambda: self._panel.attach_media("image"),
+        )
+        lore_m.add_command(
+            label=t("media.attach_audio"),
+            command=lambda: self._panel.attach_media("audio"),
+        )
+        lore_m.add_command(
+            label=t("media.attach_video"),
+            command=lambda: self._panel.attach_media("video"),
+        )
+
+        # Osobne menu Media — łatwe do znalezienia (zdjęcia / muzyka / film)
+        media_m = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=t("menu.media"), menu=media_m)
+        media_m.add_command(
+            label=t("media.attach_image"),
+            accelerator="Ctrl+Shift+I",
+            command=lambda: self._panel.attach_media("image"),
+        )
+        media_m.add_command(
+            label=t("media.attach_audio"),
+            accelerator="Ctrl+Shift+U",
+            command=lambda: self._panel.attach_media("audio"),
+        )
+        media_m.add_command(
+            label=t("media.attach_video"),
+            accelerator="Ctrl+Shift+M",
+            command=lambda: self._panel.attach_media("video"),
+        )
+        media_m.add_command(
+            label=t("media.attach_any"),
+            command=lambda: self._panel.attach_media("any"),
+        )
+        media_m.add_separator()
+        media_m.add_command(
+            label=t("media.preview"),
+            command=self._panel.preview_media,
+        )
+        media_m.add_command(
+            label=t("media.list"),
+            command=self._panel.list_media,
+        )
+        media_m.add_command(
+            label=t("media.export"),
+            command=self._panel.export_media,
+        )
 
         view_m = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label=t("menu.view"), menu=view_m)
@@ -388,6 +437,10 @@ class EditorWindow:
             command=lambda: open_help(self.root, t("help.panel")),
         )
         help_m.add_command(
+            label=t("help.media"),
+            command=lambda: open_help(self.root, t("help.media")),
+        )
+        help_m.add_command(
             label=t("help.spell"),
             command=lambda: open_help(self.root, t("help.spell")),
         )
@@ -404,17 +457,13 @@ class EditorWindow:
             command=lambda: open_help(self.root, t("help.history")),
         )
         help_m.add_command(
-            label="Pliki i Lore Pack",
-            command=lambda: open_help(self.root, "Pliki i Lore Pack"),
-        )
-        help_m.add_command(
-            label="Sieć: Karmazyn i Cynober DB",
-            command=lambda: open_help(self.root, "Sieć: Karmazyn i Cynober DB"),
+            label=t("help.network"),
+            command=lambda: open_help(self.root, t("help.network")),
         )
         help_m.add_separator()
         help_m.add_command(
-            label="O programie",
-            command=lambda: open_help(self.root, "O programie"),
+            label=t("help.about"),
+            command=lambda: open_help(self.root, t("help.about")),
         )
 
     def _bind_shortcuts(self) -> None:
@@ -426,8 +475,19 @@ class EditorWindow:
         self.root.bind_all("<Control-f>", lambda e: self._show_find())
         self.root.bind_all("<Control-Shift-D>", lambda e: self._show_name_dictionary())
         self.root.bind_all("<Control-Shift-O>", lambda e: self._choose_project_dir())
+        self.root.bind_all(
+            "<Control-Shift-I>", lambda e: self._panel.attach_media("image")
+        )
+        self.root.bind_all(
+            "<Control-Shift-U>", lambda e: self._panel.attach_media("audio")
+        )
+        self.root.bind_all(
+            "<Control-Shift-M>", lambda e: self._panel.attach_media("video")
+        )
         self.root.bind_all("<F7>", lambda e: self._show_spellcheck())
-        self.root.bind_all("<F1>", lambda e: open_help(self.root, "Przewodnik pisarza"))
+        self.root.bind_all(
+            "<F1>", lambda e: open_help(self.root, t("help.writer_guide"))
+        )
 
     def _create_tab(self, content: str = "", path: str = "", encoding: str = "utf-8") -> str:
         frame = ttk.Frame(self._notebook)
@@ -513,7 +573,7 @@ class EditorWindow:
                 return False
             tab.path = path
 
-        content = tab.text.get("1.0", tk.END)
+        content = self._tab_content(tab)
         try:
             on_file_saved(
                 self._lore,
@@ -522,7 +582,7 @@ class EditorWindow:
                 content=content,
                 encoding=tab.encoding,
             )
-        except OSError as e:
+        except (OSError, UnicodeEncodeError) as e:
             messagebox.showerror("Błąd zapisu", str(e), parent=self.root)
             return False
         except Exception as e:
@@ -632,9 +692,13 @@ class EditorWindow:
         family = self._apply_typography_all()
         self._persist_typography(family)
 
+    def _tab_content(self, tab: _TabState) -> str:
+        # end-1c: Tk zawsze trzyma dodatkowy \\n; tk.END dopisywałby go przy każdym zapisie
+        return tab.text.get("1.0", "end-1c")
+
     def _current_text_content(self) -> str:
         tab = self._current_tab()
-        return tab.text.get("1.0", "end-1c") if tab else ""
+        return self._tab_content(tab) if tab else ""
 
     def _show_print_preview(self, profile_id: str) -> None:
         tab = self._current_tab()
@@ -909,8 +973,13 @@ class EditorWindow:
             try:
                 self._lore = LoreStore.open_local(project_dir=self._proj_root)
                 self._panel.set_lore(self._lore)
-            except Exception:
-                pass
+            except Exception as e2:
+                messagebox.showerror(
+                    "Katalog projektu",
+                    "Nie otwarto nowego katalogu i nie przywrócono poprzedniego:\n"
+                    f"{e}\n{e2}",
+                    parent=self.root,
+                )
             return
 
         self._lore = new_lore
@@ -1019,12 +1088,14 @@ class EditorWindow:
 
     def _odswiez_z_dysku(self) -> None:
         """Po przywróceniu snapshotu — przeładuj otwarte karty z plików."""
+        failed: list[str] = []
         for tab_id, tab in list(self._tabs.items()):
             if not tab.path or not Path(tab.path).is_file():
                 continue
             try:
                 content, enc = read_text_smart(tab.path)
-            except (OSError, ValueError):
+            except (OSError, ValueError) as e:
+                failed.append(f"{Path(tab.path).name}: {e}")
                 continue
             tab.text.delete("1.0", tk.END)
             tab.text.insert("1.0", content)
@@ -1034,6 +1105,13 @@ class EditorWindow:
         self._panel.odswiez()
         self._update_window_title()
         self._update_status()
+        if failed:
+            messagebox.showwarning(
+                "Historia",
+                "Przywrócono snapshot, ale nie przeładowano kart:\n"
+                + "\n".join(failed[:5]),
+                parent=self.root,
+            )
 
     def _schedule_autosave(self) -> None:
         self._autosave_fail_streak = 0
@@ -1048,12 +1126,12 @@ class EditorWindow:
                             self._lore,
                             tab.path,
                             self._panel,
-                            content=tab.text.get("1.0", tk.END),
+                            content=self._tab_content(tab),
                             encoding=tab.encoding,
                         )
                         tab.dirty = False
                         self._update_tab_title(tab_id)
-                    except OSError as e:
+                    except (OSError, UnicodeEncodeError) as e:
                         # Plik nie zapisany — zostaw dirty, spróbuj ponownie.
                         failed.append(f"{Path(tab.path).name}: {e}")
                     except Exception as e:

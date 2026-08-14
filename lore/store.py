@@ -291,7 +291,10 @@ class LoreStore:
         typ = str(data.get("Typ") or TypLore.INNE.value)
 
         if doc and pole_temporalne(pole, typ):
-            stany = parse_stany(data.get(POLE_STANY))
+            try:
+                stany = parse_stany(data.get(POLE_STANY))
+            except ValueError as e:
+                raise LoreBackendError(str(e)) from e
             stany = ustaw_stan_rozdzialu(stany, doc, pole, wartosc)
             self._inject(name, POLE_STANY, stany)
         else:
@@ -322,7 +325,10 @@ class LoreStore:
             return out
 
         ctx = as_of or self._opened_doc
-        stany = parse_stany(out.get(POLE_STANY))
+        try:
+            stany = parse_stany(out.get(POLE_STANY))
+        except ValueError as e:
+            raise LoreBackendError(str(e)) from e
         kolejnosc = self._kolejnosc_dokumentow()
         resolved = scal_stan(out, stany, as_of=ctx, kolejnosc=kolejnosc)
         resolved["_relations"] = out.get("_relations", [])
@@ -586,8 +592,12 @@ class LoreStore:
                     "temperatura": data.get("_temperatura"),
                     "ostatni_rozdzial": data.get("_ostatni_rozdzial"),
                 })
-            except LoreBackendError:
-                items.append({"nazwa": name, "typ": "?", "opis": ""})
+            except LoreBackendError as e:
+                items.append({
+                    "nazwa": name,
+                    "typ": "błąd",
+                    "opis": str(e),
+                })
         return sortuj_po_temperaturze(items, ukryj_grobowiec=ukryj_grobowiec)
 
     def wklej_pomysl_do_dokumentu(
@@ -723,6 +733,14 @@ class LoreStore:
                 force_stream=force_stream,
             )
         self._oznacz_brudne()
+        # wprost dirty na rejestrze — media omijają execute()/query_may_mutate
+        try:
+            world = self._backend._attach()  # type: ignore[attr-defined]
+            self._backend._registry.mark_dirty(world.name)  # type: ignore[attr-defined]
+        except Exception as e:
+            raise LoreBackendError(
+                f"Media w RAM, ale świat nieoznaczony jako brudny: {e}"
+            ) from e
         return {
             "atom_id": ref.atom_id,
             "binding": ref.binding,
@@ -740,15 +758,15 @@ class LoreStore:
         if isinstance(self._backend, RpcLoreBackend):
             from lore.backend import _esc
 
-            try:
-                rows = self._backend.execute(
-                    f'MEDIA LIST "{_esc(name)}"', strict=False
-                )
-            except LoreBackendError:
-                return []
+            rows = self._backend.execute(
+                f'MEDIA LIST "{_esc(name)}"', strict=False
+            )
             row = rows[-1] if rows else {}
             if row.get("status") != "ok":
-                return []
+                raise LoreBackendError(
+                    row.get("message")
+                    or "MEDIA LIST nieudane — serwer nie zwrócił listy mediów."
+                )
             media = row.get("media") or []
             out: List[Dict[str, Any]] = []
             for m in media:
@@ -828,13 +846,9 @@ class LoreStore:
     def _resolve_media_atom_id(self, encja: str, rola: str) -> str:
         name = self._sanitize_entity(encja)
         role = (rola or "").strip()
-        # najpierw lista (lokalnie lub MEDIA LIST) — prawdziwe atom_id
         for m in self.lista_mediow(name):
             if (m.get("binding") or "") == role and m.get("atom_id"):
                 return str(m["atom_id"])
-        if isinstance(self._backend, RpcLoreBackend):
-            # konwencja put_media z lore (gdy lista pusta / stary serwer)
-            return f"m_{name}_{role}".replace(" ", "_")[:48]
         raise LoreBackendError(f"Brak media „{role}” przy „{name}”.")
 
     def podglad_media(
@@ -863,19 +877,19 @@ class LoreStore:
             data, mime, _ = client.get_media(atom_id)
             import karmazyn_kernel as kernel
             import karmazyn_media as km
-            from karmazyn_media_preview import open_preview
 
             tmp = kernel.Store(thermal=True)
             ref = km.attach_bytes(
                 tmp, name, role, data, mime=mime or "application/octet-stream"
             )
-            ok, msg = open_preview(tmp, ref.atom_id, parent=parent)
+            ok, msg = km.open_preview(tmp, ref.atom_id, parent=parent)
             return {"ok": ok, "message": msg, "atom_id": atom_id, "rpc": True, "mime": mime}
 
-        from karmazyn_media_preview import open_preview
+        # re-export open_preview w karmazyn_media (działa gdy preview jest w path)
+        import karmazyn_media as km
 
         store = self._phi_store()
-        ok, msg = open_preview(store, atom_id, parent=parent)
+        ok, msg = km.open_preview(store, atom_id, parent=parent)
         return {"ok": ok, "message": msg, "atom_id": atom_id, "rpc": False}
 
     # ── Wyszukiwanie ──────────────────────────────────────────────────────
@@ -956,8 +970,8 @@ class LoreStore:
 
     def _run_line(self, line: str, *, strict: bool = True) -> dict:
         row = _last(self._run(line, strict=strict))
-        # RPC + strict=False: nadal wykryj status error w odpowiedzi
-        if strict and row.get("status") == "error":
+        # Błąd silnika/RPC nie jest „pustym wynikiem” — nawet przy strict=False.
+        if row.get("status") == "error":
             raise LoreBackendError(row.get("message") or "Błąd zapytania lore")
         return row
 

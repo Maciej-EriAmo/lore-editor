@@ -8,12 +8,9 @@ _ENCODINGS = ("utf-8-sig", "utf-8", "cp1250", "latin-1", "iso-8859-2")
 
 
 def is_binary_file(path: str | Path, sample: int = 8192) -> bool:
-    try:
-        with open(path, "rb") as f:
-            chunk = f.read(sample)
-        return b"\0" in chunk
-    except OSError:
-        return True
+    with open(path, "rb") as f:
+        chunk = f.read(sample)
+    return b"\0" in chunk
 
 
 def read_text_smart(path: str | Path) -> tuple[str, str]:
@@ -35,7 +32,7 @@ def write_text(path: str | Path, content: str, encoding: str = "utf-8") -> None:
     enc = encoding.split()[0] if encoding else "utf-8"
     if enc not in _ENCODINGS and enc != "utf-8":
         enc = "utf-8"
-    Path(path).write_text(content, encoding=enc, errors="replace")
+    Path(path).write_text(content, encoding=enc, errors="strict")
 
 
 def write_text_atomic(path: str | Path, content: str, encoding: str = "utf-8") -> None:

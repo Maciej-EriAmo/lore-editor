@@ -34,19 +34,21 @@ def sync_atom_id_counter(store: Any) -> None:
 
     Preferuje Store.sync_id_counter() (Python + NativeStore). Fallback: atoms().
     """
+    primary_err: Exception | None = None
     if callable(getattr(store, "sync_id_counter", None)):
         try:
             store.sync_id_counter()
             return
-        except Exception:
-            pass
-    if not hasattr(store, "_n"):
-        return
-    atoms_fn = getattr(store, "atoms", None)
-    if not callable(atoms_fn):
+        except Exception as e:
+            primary_err = e
+    if not hasattr(store, "_n") or not callable(getattr(store, "atoms", None)):
+        if primary_err is not None:
+            raise RuntimeError(
+                f"Nie zsynchronizowano licznika id atomów: {primary_err}"
+            ) from primary_err
         return
     max_id = -1
-    for atom in atoms_fn():
+    for atom in store.atoms():
         aid = getattr(atom, "id", "")
         if isinstance(aid, str) and aid.startswith("a") and aid[1:].isdigit():
             max_id = max(max_id, int(aid[1:]))
@@ -55,22 +57,42 @@ def sync_atom_id_counter(store: Any) -> None:
 
 
 def read_kafd_vfs_meta(kafd_path: Path | str) -> dict[str, Any]:
-    if not Path(kafd_path).is_file():
+    path = Path(kafd_path)
+    if not path.is_file():
         return {}
     try:
         import karmazyn_store
 
-        stats = karmazyn_store.store_stats(str(kafd_path))
-        meta = stats.get("meta")
-        return meta if isinstance(meta, dict) else {}
-    except Exception:
-        return {}
+        stats = karmazyn_store.store_stats(str(path))
+    except Exception as e:
+        raise RuntimeError(f"Nie odczytano meta .kafd ({path}): {e}") from e
+    # store_stats połyka wyjątki do {"error": ...} — nie traktuj tego jako pustej mety
+    if stats.get("error"):
+        raise RuntimeError(
+            f"Nie odczytano meta .kafd ({path}): {stats['error']}"
+        )
+    meta = stats.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+    atoms = int(stats.get("atoms") or 0)
+    # śmieci po XOR+unpack dają 0 atomów i {} — nie mylić z prawdziwym Lore Pack
+    if atoms == 0 and not meta and path.stat().st_size > 0:
+        raise RuntimeError(
+            f"Plik .kafd wygląda na uszkodzony (0 atomów, pusta meta): {path}"
+        )
+    return meta
 
 
 def world_meta_from_disk(base: Path, name: str) -> dict[str, Any]:
     """Metadane świata: najpierw lore_pack z .kafd, potem legacy .meta.json."""
     kafd = base / f"{name}.kafd"
-    vfs = read_kafd_vfs_meta(kafd)
+    vfs_err: Exception | None = None
+    vfs: dict[str, Any] = {}
+    if kafd.is_file():
+        try:
+            vfs = read_kafd_vfs_meta(kafd)
+        except Exception as e:
+            vfs_err = e
     pack = vfs.get(LORE_PACK_KEY)
     if isinstance(pack, dict) and pack.get("version") == LORE_PACK_VERSION:
         return dict(pack)
@@ -81,9 +103,14 @@ def world_meta_from_disk(base: Path, name: str) -> dict[str, Any]:
             import json
 
             data = json.loads(sidecar.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else {}
+            if isinstance(data, dict):
+                return data
         except (OSError, ValueError):
-            pass
+            from lore.paths import quarantine_corrupt
+
+            quarantine_corrupt(sidecar)
+    if vfs_err is not None:
+        raise vfs_err
     return {}
 
 

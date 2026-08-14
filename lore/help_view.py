@@ -7,6 +7,17 @@ from tkinter import scrolledtext, ttk
 from typing import Optional
 
 from lore.help_topics import DEFAULT_TOPIC, get_topic, topic_titles
+
+
+def resolve_help_title(title: str, titles: list[str]) -> str | None:
+    """Wybierz tytuł z aktywnej listy — nie spadaj na PL, gdy locale jest inne."""
+    if title in titles:
+        return title
+    if DEFAULT_TOPIC in titles:
+        return DEFAULT_TOPIC
+    if titles:
+        return titles[0]
+    return None
 from lore.theme import apply_theme, style_text
 
 
@@ -76,8 +87,10 @@ class HelpWindow:
 
     def _select_topic(self, title: str) -> None:
         titles = topic_titles()
-        if title not in titles:
-            title = DEFAULT_TOPIC
+        chosen = resolve_help_title(title, titles)
+        if chosen is None:
+            return
+        title = chosen
         idx = titles.index(title)
         self._list.selection_clear(0, tk.END)
         self._list.selection_set(idx)

@@ -229,17 +229,29 @@ lore-editor --rpc --host 192.168.1.10 --port 8080 \
 # albo user+token w profilu ~/.karmazyn_client.json
 ```
 
-### Grafiki (media) — stan teraz
+### Grafiki / media (zdjęcia, dźwięk, film)
+
+**Menu belki «Media»** (oraz skróty i ramka w panelu Lore):
+
+| Akcja | Gdzie | Skrót |
+|-------|--------|--------|
+| Dodaj zdjęcie / grafikę | Media · Lore · panel **+ Zdjęcie** | `Ctrl+Shift+I` |
+| Dodaj muzykę / dźwięk | Media · panel **+ Dźwięk** | `Ctrl+Shift+U` |
+| Dodaj film / klip | Media · panel **+ Film** | `Ctrl+Shift+M` |
+| Podgląd / lista / eksport | menu Media · panel | — |
+
+**Krok:** zaznacz wpis na liście lore (postać, miejsce…) → Media → plik → rola (portret, głos, klip…).
 
 | | Lokalnie | `--rpc` (cynober-server) |
 |--|----------|---------------------------|
-| **Dołącz plik** | Panel → Dołącz plik… | to samo → `put_media` (KAFS) |
-| **Gdzie leży** | atom w bąblu postaci, `.kafd` | świat na serwerze |
+| **Dołącz** | atom w bąblu → `.kafd` | `put_media` (KAFS) |
 | **Lista** | bindingi w bąblu | `MEDIA LIST "Encja"` |
-| **Podgląd** | płótno atomów / player | `get_media` → to samo UI |
+| **Podgląd** | płótno / player systemowy | `get_media` → to samo UI |
 | **Wymagania** | cynober-db | **≥ 8.2.2**, sesja z **kafs-stream** |
 
-Bez KAFS (stary klient/serwer) upload grafiki po sieci **nie** zadziała — zobaczysz ostrzeżenie przy connect.
+Formaty: PNG/JPEG/GIF/WebP · WAV/MP3/OGG · MP4/WebM/MKV.  
+F1 → temat **Media (zdjęcia, dźwięk, film)**.  
+Bez KAFS (stary klient/serwer) upload po sieci **nie** zadziała — ostrzeżenie przy connect.
 
 #### Auth RPC (od 0.7.5)
 

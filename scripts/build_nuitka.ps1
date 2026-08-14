@@ -37,8 +37,12 @@ $modules = @(
     "cynober_worlds", "cynober_world_shards", "cynober_auto_flush",
     "cynober_replicate", "cynober_client", "cynober_rpc", "cynober_client_config",
     "cynober_query_engine", "cynober_lambda_bridge", "cynober_ops",
+    "cynober_media_rpc",
     "karmazyn_kernel", "karmazyn_substrate", "karmazyn_store", "karmazyn_kafd",
-    "karmazyn_atom", "karmazyn_atomstore", "karmazyn_exec", "karmazyn_proca"
+    "karmazyn_atom", "karmazyn_atomstore", "karmazyn_exec", "karmazyn_proca",
+    # multimedia (Dołącz plik / podgląd / KAFS) — bez tego standalone nie ładuje grafik
+    "karmazyn_media", "karmazyn_media_preview", "karmazyn_media_canvas",
+    "karmazyn_media_incremental"
 )
 
 $dataDir = Join-Path $RepoRoot "lore\data"
@@ -48,6 +52,8 @@ $include = @(
     "--include-package=spylls",
     "--include-package=docx",
     "--include-package=lxml",
+    # podgląd JPEG/PNG w karmazyn_media_preview
+    "--include-package=PIL",
     "--include-data-dir=${dataDir}=lore/data"
 )
 $include += $modules | ForEach-Object { "--include-module=$_" }

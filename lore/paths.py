@@ -138,6 +138,23 @@ def default_work_dir(*, cwd: Path | None = None) -> Path:
     return (Path.home() / DEFAULT_WORK_DIR_REL).resolve()
 
 
+def quarantine_corrupt(path: Path) -> Optional[Path]:
+    """Przenieś nieczytelny plik na *.bak — nie nadpisuj cicho uszkodzonych danych."""
+    path = Path(path)
+    if not path.is_file():
+        return None
+    bak = path.with_name(path.name + ".bak")
+    n = 1
+    while bak.exists():
+        bak = path.with_name(f"{path.name}.bak{n}")
+        n += 1
+    try:
+        path.replace(bak)
+        return bak
+    except OSError:
+        return None
+
+
 def _read_session() -> dict:
     if not LAST_WORK_DIR_FILE.is_file():
         return {}
@@ -147,6 +164,7 @@ def _read_session() -> dict:
         data = json.loads(LAST_WORK_DIR_FILE.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError, TypeError):
+        quarantine_corrupt(LAST_WORK_DIR_FILE)
         return {}
 
 

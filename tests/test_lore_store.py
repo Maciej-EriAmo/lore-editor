@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from lore.backend import LocalLoreBackend, LoreBackendError
+from lore.backend import LocalLoreBackend, LoreBackendError, RpcLoreBackend
 from lore.cynober_patch import LORE_PACK_KEY, LORE_PACK_VERSION, read_kafd_vfs_meta
 from lore.paths import ProjectPaths
 from lore.store import LoreStore
@@ -316,6 +316,67 @@ class TestOpenRpc(unittest.TestCase):
             self.assertFalse(lore.tryb_lokalny())
             self.assertEqual(lore.katalog_projektu(), Path(tmp).resolve())
             lore.close()
+
+
+class _FakeRpcClient:
+    def __init__(self, payload):
+        self.sock = object()
+        self.kafs_enabled = False
+        self._payload = payload
+
+    def query(self, _script):
+        return self._payload
+
+    def close(self):
+        pass
+
+
+class TestHonesty(unittest.TestCase):
+    def test_legacy_session_info_not_connected_without_sock(self):
+        backend = RpcLoreBackend(object())
+        info = backend.session_info()
+        self.assertTrue(info.get("legacy_client"))
+        self.assertFalse(info.get("connected"))
+
+    def test_legacy_session_info_connected_when_sock_present(self):
+        class _Client:
+            sock = object()
+            kafs_enabled = False
+
+        info = RpcLoreBackend(_Client()).session_info()
+        self.assertTrue(info.get("legacy_client"))
+        self.assertTrue(info.get("connected"))
+
+    def test_lista_mediow_rpc_error_raises(self):
+        client = _FakeRpcClient(
+            {"results": [{"status": "error", "message": "brak MEDIA LIST"}]}
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = ProjectPaths.resolve("demo", tmp)
+            lore = LoreStore(RpcLoreBackend(client), paths)
+            with self.assertRaises(LoreBackendError) as ctx:
+                lore.lista_mediow("Anna")
+            self.assertIn("MEDIA LIST", str(ctx.exception))
+
+    def test_resolve_media_id_does_not_invent(self):
+        client = _FakeRpcClient({"results": [{"status": "ok", "media": []}]})
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = ProjectPaths.resolve("demo", tmp)
+            lore = LoreStore(RpcLoreBackend(client), paths)
+            with self.assertRaises(LoreBackendError) as ctx:
+                lore._resolve_media_atom_id("Anna", "portret")
+            self.assertNotIn("m_Anna_portret", str(ctx.exception))
+
+    def test_encja_istnieje_raises_on_query_error(self):
+        client = _FakeRpcClient(
+            {"results": [{"status": "error", "message": "tunel padł"}]}
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = ProjectPaths.resolve("demo", tmp)
+            lore = LoreStore(RpcLoreBackend(client), paths)
+            with self.assertRaises(LoreBackendError) as ctx:
+                lore.encja_istnieje("Anna")
+            self.assertIn("tunel", str(ctx.exception))
 
 
 if __name__ == "__main__":

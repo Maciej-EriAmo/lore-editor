@@ -61,8 +61,6 @@ def open_print_preview(
     margin_px = int(stats.profile.margin_mm * scale)
 
     slices = stats.page_slices or ()
-    if not slices:
-        slices = ()
 
     for sl in slices:
         frame = tk.Frame(inner, bg=BORDER, padx=1, pady=1)

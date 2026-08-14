@@ -184,10 +184,12 @@ def spacing2_pixels(size: int, line_spacing: float) -> int:
 
 
 def load_typography_settings() -> TypographySettings:
+    if not SETTINGS_FILE.is_file():
+        return TypographySettings()
     try:
         raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
-            return TypographySettings()
+            raise ValueError("typography.json nie jest obiektem")
         preset_id = str(raw.get("preset_id", "drafting_courier_new"))
         preset_id = _LEGACY_PRESET_MAP.get(preset_id, preset_id)
         if preset_id not in _PRESET_BY_ID:
@@ -200,6 +202,9 @@ def load_typography_settings() -> TypographySettings:
             line_spacing=float(line_spacing) if line_spacing is not None else None,
         )
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        from lore.paths import quarantine_corrupt
+
+        quarantine_corrupt(SETTINGS_FILE)
         return TypographySettings()
 
 

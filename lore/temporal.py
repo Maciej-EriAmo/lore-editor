@@ -21,11 +21,12 @@ def parse_stany(raw: Any) -> Dict[str, Dict[str, Any]]:
     if isinstance(raw, str):
         try:
             data = json.loads(raw)
-        except (json.JSONDecodeError, TypeError):
-            return {}
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(f"Uszkodzone stany rozdziałowe: {e}") from e
         if isinstance(data, dict):
             return {str(k): dict(v) if isinstance(v, dict) else {} for k, v in data.items()}
-    return {}
+        raise ValueError("Stany rozdziałowe nie są obiektem JSON.")
+    raise ValueError(f"Nieobsługiwany typ stanów: {type(raw).__name__}")
 
 
 def serialize_stany(stany: Dict[str, Dict[str, Any]]) -> str:

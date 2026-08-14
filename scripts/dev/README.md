@@ -9,6 +9,8 @@ Instalacja / build (w katalogu nadrzędnym `scripts/`):
 - `install_fonts.ps1`
 - `build_nuitka.ps1` — standalone Windows (`dist/LoreEditor-<ver>-win64.zip`)
 
+`ROOT` w skryptach to katalog repo (`scripts/dev/../..`), nie `scripts/`.
+
 Uruchamianie z korzenia repo, np.:
 
 ```powershell

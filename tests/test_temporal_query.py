@@ -151,6 +151,14 @@ class TestTemporalHelpers(unittest.TestCase):
         self.assertIn("Dok_x", raw)
         self.assertNotIn("Opis", raw)
 
+    def test_parse_stany_uszkodzony_json_rzuca(self):
+        with self.assertRaises(ValueError):
+            parse_stany("{nie json")
+        with self.assertRaises(ValueError):
+            parse_stany(123)
+        self.assertEqual(parse_stany(None), {})
+        self.assertEqual(parse_stany(""), {})
+
 
 if __name__ == "__main__":
     unittest.main()

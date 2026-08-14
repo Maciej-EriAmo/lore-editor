@@ -8,7 +8,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from lore.backend import LoreBackendError, connect_rpc, query_may_mutate
+from lore.backend import (
+    LoreBackendError,
+    _resolve_rpc_credentials,
+    connect_rpc,
+    query_may_mutate,
+)
 from lore.i18n import discover_and_load, get_locale, list_locales, set_locale, t
 from lore.i18n.core import load_locale_dir
 from lore.store import LoreStore
@@ -48,6 +53,15 @@ class TestI18n(unittest.TestCase):
         self.assertIsNotNone(pack)
         assert pack is not None
         self.assertEqual(pack.code, "en")
+
+    def test_uszkodzony_ui_json_nie_rejestruje(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / "xx"
+            d.mkdir()
+            (d / "ui.json").write_text("{nie json", encoding="utf-8")
+            with self.assertWarns(UserWarning):
+                pack = load_locale_dir(d, source="test")
+            self.assertIsNone(pack)
 
 
 class TestDirtyOnRead(unittest.TestCase):
@@ -202,6 +216,29 @@ class TestAuthAndTeam(unittest.TestCase):
                     z.ustaw_serwer("192.168.1.10", 8080)
                 # z creds OK (tylko rejestracja peera, bez sieci)
                 z.ustaw_serwer("192.168.1.10", 8080, user="w", token="t")
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
+    def test_rpc_profile_load_failure_raises(self) -> None:
+        env_keys = (
+            "LORE_RPC_USER",
+            "LORE_RPC_TOKEN",
+            "CYNOBER_USER",
+            "CYNOBER_TOKEN",
+        )
+        saved = {k: os.environ.pop(k, None) for k in env_keys}
+        try:
+            with patch(
+                "cynober_client_config.load_config",
+                side_effect=OSError("brak profilu"),
+            ):
+                with self.assertRaises(LoreBackendError) as ctx:
+                    _resolve_rpc_credentials(profile="produkcja")
+            self.assertIn("produkcja", str(ctx.exception))
         finally:
             for k, v in saved.items():
                 if v is None:

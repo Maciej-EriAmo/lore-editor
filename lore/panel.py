@@ -200,11 +200,33 @@ class LorePanel(ttk.Frame):
         ttk.Button(act, text=t("panel.connect"), command=self._dlg_polacz).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.unlink"), command=self._odlacz).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.edit_entry"), command=self._dlg_edytuj).pack(fill="x", pady=1)
-        ttk.Button(act, text=t("panel.attach_media"), command=self._dlg_media).pack(fill="x", pady=1)
-        ttk.Button(act, text=t("panel.preview_media"), command=self._dlg_preview_media).pack(
-            fill="x", pady=1
-        )
         ttk.Button(act, text=t("panel.delete_entry"), command=self._usun_wpis).pack(fill="x", pady=1)
+
+        media_box = ttk.LabelFrame(tab_lore, text=t("panel.media_box"), padding=4)
+        media_box.pack(fill="x", pady=(0, 6))
+        mrow = ttk.Frame(media_box)
+        mrow.pack(fill="x")
+        ttk.Button(
+            mrow, text=t("panel.attach_image"), command=lambda: self.attach_media("image")
+        ).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(
+            mrow, text=t("panel.attach_audio"), command=lambda: self.attach_media("audio")
+        ).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(
+            mrow, text=t("panel.attach_video"), command=lambda: self.attach_media("video")
+        ).pack(side="left", expand=True, fill="x", padx=1)
+        ttk.Button(
+            media_box, text=t("panel.attach_media"), command=lambda: self.attach_media("any")
+        ).pack(fill="x", pady=(4, 1))
+        ttk.Button(
+            media_box, text=t("panel.preview_media"), command=self.preview_media
+        ).pack(fill="x", pady=1)
+        ttk.Button(
+            media_box, text=t("media.list"), command=self.list_media
+        ).pack(fill="x", pady=1)
+        ttk.Button(
+            media_box, text=t("media.export"), command=self.export_media
+        ).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.map"), command=self._mapa).pack(fill="x", pady=1)
         ttk.Button(act, text=t("panel.refresh"), command=self.odswiez).pack(fill="x", pady=1)
 
@@ -339,8 +361,8 @@ class LorePanel(ttk.Frame):
                             f"  · {m.get('binding')}: {m.get('mime')} "
                             f"({m.get('size')} B)"
                         )
-            except Exception:
-                pass
+            except Exception as e:
+                lines.append(f"— media: {e}")
             self._set_detail("\n".join(lines))
         except Exception as e:
             self._set_detail(str(e))
@@ -464,39 +486,76 @@ class LorePanel(ttk.Frame):
         fields = pola_do_edycji(typ)
         _EditEntityDialog(self, self._lore, name, typ, fields, data)
 
-    def _dlg_media(self) -> None:
-        """Faza 1: dołącz plik (portret/klip) do wybranej encji."""
+    # ── Media API (menu główne + panel) ───────────────────────────────────
+
+    def _media_filetypes(self, kind: str) -> list[tuple[str, str]]:
+        """Windows Tk: spacje między maskami (nie średniki)."""
+        kind = (kind or "any").lower()
+        images = (t("media.ft_images"), "*.png *.jpg *.jpeg *.gif *.webp *.bmp *.tif *.tiff")
+        audio = (t("media.ft_audio"), "*.wav *.mp3 *.ogg *.flac *.m4a *.aac")
+        video = (t("media.ft_video"), "*.mp4 *.webm *.mkv *.avi *.mov")
+        all_f = (t("media.ft_all"), "*.*")
+        if kind in ("image", "photo", "grafika", "zdjecie", "zdjęcie"):
+            return [images, all_f]
+        if kind in ("audio", "music", "sound", "muzyka", "dzwiek", "dźwięk"):
+            return [audio, all_f]
+        if kind in ("video", "film", "klip"):
+            return [video, all_f]
+        return [images, audio, video, all_f]
+
+    def _media_role_defaults(self, kind: str) -> tuple[str, str]:
+        """(prompt_key, default_role)."""
+        kind = (kind or "any").lower()
+        if kind in ("image", "photo", "grafika", "zdjecie", "zdjęcie"):
+            return "media.role_image", "portret"
+        if kind in ("audio", "music", "sound", "muzyka", "dzwiek", "dźwięk"):
+            return "media.role_audio", "glos"
+        if kind in ("video", "film", "klip"):
+            return "media.role_video", "klip"
+        return "media.role_any", "portret"
+
+    def attach_media(self, kind: str = "any") -> None:
+        """Dołącz zdjęcie / dźwięk / film (lub dowolny plik) do wybranego wpisu."""
         name = self._selected_name()
         if not name:
-            messagebox.showinfo(t("menu.lore"), t("panel.select_entry"), parent=self)
+            messagebox.showinfo(
+                t("menu.media"),
+                t("media.hint_select") + "\n\n" + t("panel.select_entry"),
+                parent=self,
+            )
             return
+        prompt_key, default_role = self._media_role_defaults(kind)
+        title = {
+            "image": t("media.attach_image"),
+            "photo": t("media.attach_image"),
+            "audio": t("media.attach_audio"),
+            "music": t("media.attach_audio"),
+            "video": t("media.attach_video"),
+            "film": t("media.attach_video"),
+        }.get((kind or "any").lower(), t("media.attach_any"))
         path = filedialog.askopenfilename(
             parent=self,
-            title=t("panel.attach_media"),
-            filetypes=[
-                ("Obrazy", "*.png;*.jpg;*.jpeg;*.gif;*.webp"),
-                ("Audio", "*.wav;*.mp3;*.ogg"),
-                ("Wszystkie", "*.*"),
-            ],
+            title=title,
+            filetypes=self._media_filetypes(kind),
         )
         if not path:
             return
         role = simpledialog.askstring(
-            t("panel.attach_media"),
-            t("panel.media_role_prompt"),
-            initialvalue="portret",
+            title,
+            t(prompt_key),
+            initialvalue=default_role,
             parent=self,
         )
         if role is None:
             return
-        role = (role or "portret").strip() or "portret"
+        role = (role or default_role).strip() or default_role
         try:
             info = self._lore.dodaj_media(name, role, path)
             self._lore.zapisz()
             self.odswiez()
             self._on_select()
             messagebox.showinfo(
-                t("menu.lore"),
+                t("menu.media"),
                 t(
                     "panel.media_attached",
                     role=info.get("binding", role),
@@ -506,19 +565,23 @@ class LorePanel(ttk.Frame):
                 parent=self,
             )
         except Exception as e:
-            messagebox.showerror(t("menu.lore"), str(e), parent=self)
+            messagebox.showerror(t("menu.media"), str(e), parent=self)
 
-    def _dlg_preview_media(self) -> None:
-        """Faza 5: podgląd media (obrazy w Tk jak Luneta; a/v — player systemowy)."""
+    def preview_media(self) -> None:
+        """Podgląd grafiki / odtwarzanie a/v dla wybranego wpisu."""
         name = self._selected_name()
         if not name:
-            messagebox.showinfo(t("menu.lore"), t("panel.select_entry"), parent=self)
+            messagebox.showinfo(
+                t("menu.media"),
+                t("media.hint_select"),
+                parent=self,
+            )
             return
-        media = []
         try:
             media = self._lore.lista_mediow(name)
-        except Exception:
-            media = []
+        except Exception as e:
+            messagebox.showerror(t("menu.media"), str(e), parent=self)
+            return
         role = "portret"
         if media:
             if len(media) == 1:
@@ -526,7 +589,7 @@ class LorePanel(ttk.Frame):
             else:
                 roles = ", ".join(m.get("binding") or "?" for m in media)
                 role = simpledialog.askstring(
-                    t("panel.preview_media"),
+                    t("media.preview"),
                     t("panel.media_role_prompt") + f"\n({roles})",
                     initialvalue=media[0].get("binding") or "portret",
                     parent=self,
@@ -535,25 +598,131 @@ class LorePanel(ttk.Frame):
                     return
                 role = (role or "portret").strip() or "portret"
         else:
+            messagebox.showinfo(
+                t("menu.media"),
+                t("media.none", name=name),
+                parent=self,
+            )
+            return
+        try:
+            res = self._lore.podglad_media(name, role, parent=self.winfo_toplevel())
+            if not res.get("ok"):
+                messagebox.showwarning(
+                    t("menu.media"),
+                    res.get("message") or t("panel.preview_failed"),
+                    parent=self,
+                )
+        except Exception as e:
+            messagebox.showerror(t("menu.media"), str(e), parent=self)
+
+    def list_media(self) -> None:
+        """Pokaż listę bindingów mediów wybranego wpisu."""
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo(t("menu.media"), t("media.hint_select"), parent=self)
+            return
+        try:
+            media = self._lore.lista_mediow(name)
+        except Exception as e:
+            messagebox.showerror(t("menu.media"), str(e), parent=self)
+            return
+        if not media:
+            messagebox.showinfo(
+                t("menu.media"), t("media.none", name=name), parent=self
+            )
+            return
+        lines = [t("media.list_title", name=name), ""]
+        for m in media:
+            lines.append(
+                f"• {m.get('binding') or '?'}  ·  {m.get('mime') or '?'}  ·  "
+                f"{int(m.get('size') or 0)} B  ·  id={m.get('atom_id') or '?'}"
+            )
+        messagebox.showinfo(t("menu.media"), "\n".join(lines), parent=self)
+
+    def export_media(self) -> None:
+        """Eksport medium bindingu do pliku na dysku."""
+        name = self._selected_name()
+        if not name:
+            messagebox.showinfo(t("menu.media"), t("media.hint_select"), parent=self)
+            return
+        try:
+            media = self._lore.lista_mediow(name)
+        except Exception as e:
+            messagebox.showerror(t("menu.media"), str(e), parent=self)
+            return
+        if not media:
+            messagebox.showinfo(
+                t("menu.media"), t("media.none", name=name), parent=self
+            )
+            return
+        if len(media) == 1:
+            role = media[0].get("binding") or "portret"
+        else:
+            roles = ", ".join(m.get("binding") or "?" for m in media)
             role = simpledialog.askstring(
-                t("panel.preview_media"),
-                t("panel.media_role_prompt"),
-                initialvalue="portret",
+                t("media.export"),
+                t("panel.media_role_prompt") + f"\n({roles})",
+                initialvalue=media[0].get("binding") or "portret",
                 parent=self,
             )
             if role is None:
                 return
             role = (role or "portret").strip() or "portret"
+        # domyślne rozszerzenie z mime
+        mime = ""
+        for m in media:
+            if (m.get("binding") or "") == role:
+                mime = str(m.get("mime") or "")
+                break
+        ext = ".bin"
+        if "png" in mime:
+            ext = ".png"
+        elif "jpeg" in mime or "jpg" in mime:
+            ext = ".jpg"
+        elif "gif" in mime:
+            ext = ".gif"
+        elif "webp" in mime:
+            ext = ".webp"
+        elif "mp3" in mime:
+            ext = ".mp3"
+        elif "wav" in mime:
+            ext = ".wav"
+        elif "ogg" in mime:
+            ext = ".ogg"
+        elif "mp4" in mime:
+            ext = ".mp4"
+        elif "webm" in mime:
+            ext = ".webm"
+        path = filedialog.asksaveasfilename(
+            parent=self,
+            title=t("media.export_title"),
+            defaultextension=ext,
+            initialfile=f"{name}_{role}{ext}",
+            filetypes=[
+                (t("media.ft_all"), "*.*"),
+                (t("media.ft_images"), "*.png *.jpg *.jpeg *.gif *.webp"),
+                (t("media.ft_audio"), "*.mp3 *.wav *.ogg *.flac"),
+                (t("media.ft_video"), "*.mp4 *.webm *.mkv"),
+            ],
+        )
+        if not path:
+            return
         try:
-            res = self._lore.podglad_media(name, role, parent=self.winfo_toplevel())
-            if not res.get("ok"):
-                messagebox.showwarning(
-                    t("menu.lore"),
-                    res.get("message") or t("panel.preview_failed"),
-                    parent=self,
-                )
+            n = self._lore.eksport_media(name, role, path)
+            messagebox.showinfo(
+                t("menu.media"),
+                t("media.export_ok", path=path, size=n),
+                parent=self,
+            )
         except Exception as e:
-            messagebox.showerror(t("menu.lore"), str(e), parent=self)
+            messagebox.showerror(t("menu.media"), str(e), parent=self)
+
+    # aliasy starych nazw (gdyby coś wołało)
+    def _dlg_media(self) -> None:
+        self.attach_media("any")
+
+    def _dlg_preview_media(self) -> None:
+        self.preview_media()
 
     def _po_edycji_wpisu(self, name: str) -> None:
         """Odśwież listę i ponownie pokaż zaktualizowany podgląd."""
@@ -647,8 +816,9 @@ class LorePanel(ttk.Frame):
             if path:
                 try:
                     seed = self._lore.otworz_dokument(path)
-                except Exception:
-                    seed = None
+                except Exception as e:
+                    messagebox.showerror("Mapa lore", str(e), parent=self)
+                    return
         try:
             open_graph_window(self.winfo_toplevel(), self._lore, seed=seed)
         except Exception as e:

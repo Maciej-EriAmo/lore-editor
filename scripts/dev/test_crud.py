@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from lore.cynober_patch import LORE_PACK_KEY, read_kafd_vfs_meta

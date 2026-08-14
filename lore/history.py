@@ -126,7 +126,7 @@ class LoreHistoria:
         readme = self._base / README_FILE
         readme.write_text(_README_PL, encoding="utf-8")
         if not self._manifest_path().is_file():
-            self._save_manifest({"version": MANIFEST_VERSION, "snapshots": []})
+            self._save_manifest(self._rebuild_manifest_from_dirs())
         return self._base
 
     def utworz_bazowy_jesli_pusty(self) -> Optional[SnapshotInfo]:
@@ -141,16 +141,33 @@ class LoreHistoria:
     def _manifest_path(self) -> Path:
         return self._base / MANIFEST_FILE
 
+    def _rebuild_manifest_from_dirs(self) -> Dict[str, Any]:
+        """Odtwórz listę z katalogów snapshots/ — nie udawaj pustej historii."""
+        snaps: List[Dict[str, Any]] = []
+        if self._snap_dir.is_dir():
+            for child in sorted(self._snap_dir.iterdir()):
+                if not child.is_dir():
+                    continue
+                snaps.append({
+                    "id": child.name,
+                    "created_at": child.stat().st_mtime,
+                    "label": child.name,
+                    "reason": "recovered",
+                    "fingerprint": "",
+                    "files": [],
+                })
+        return {"version": MANIFEST_VERSION, "snapshots": snaps}
+
     def _load_manifest(self) -> Dict[str, Any]:
         path = self._manifest_path()
         if not path.is_file():
-            return {"version": MANIFEST_VERSION, "snapshots": []}
+            return self._rebuild_manifest_from_dirs()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            return {"version": MANIFEST_VERSION, "snapshots": []}
+            return self._rebuild_manifest_from_dirs()
         if not isinstance(data, dict):
-            return {"version": MANIFEST_VERSION, "snapshots": []}
+            return self._rebuild_manifest_from_dirs()
         data.setdefault("version", MANIFEST_VERSION)
         data.setdefault("snapshots", [])
         return data
@@ -279,14 +296,20 @@ class LoreHistoria:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(path, target)
 
+        leftovers: List[str] = []
         if strict:
             for path in _iter_rozdzialy(self._root):
                 rel = str(path.relative_to(self._root)).replace("\\", "/")
                 if rel not in restored_rels:
                     try:
                         path.unlink()
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        leftovers.append(f"{rel}: {e}")
+        if leftovers:
+            raise OSError(
+                "Przywrócono snapshot, ale nie usunięto rozdziałów: "
+                + "; ".join(leftovers)
+            )
 
         marker = src / ".lore-project"
         if marker.is_file():

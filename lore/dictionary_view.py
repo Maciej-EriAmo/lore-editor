@@ -125,17 +125,17 @@ class NameDictionaryDialog(tk.Toplevel):
     def _load_index(self) -> None:
         self._all_names = []
         self._by_name = {}
+        self._load_error = ""
         try:
             names = self._lore.wszystkie_wpisy()
-        except Exception:
-            names = []
+        except Exception as e:
+            self._load_error = str(e)
+            return
         for name in names:
             try:
                 data = self._lore.podglad(name)
-            except Exception:
-                data = {"Typ": "?"}
-            typ = str(data.get("Typ") or "?")
-            # Pomiń czyste „Dokument” w słowniku nazw własnych (opcjonalnie zostaw)
+            except Exception as e:
+                data = {"Typ": "?", "_blad": str(e)}
             self._all_names.append(name)
             self._by_name[name] = data
 
@@ -162,7 +162,12 @@ class NameDictionaryDialog(tk.Toplevel):
             self._list.selection_set(0)
             self._show_detail()
         else:
-            self._set_detail("Brak pasujących nazw w lore.\nDodaj postać / miejsce w panelu Lore.")
+            if getattr(self, "_load_error", ""):
+                self._set_detail(f"Nie wczytano lore: {self._load_error}")
+            else:
+                self._set_detail(
+                    "Brak pasujących nazw w lore.\nDodaj postać / miejsce w panelu Lore."
+                )
 
     def _selected_name(self) -> Optional[str]:
         sel = self._list.curselection()
@@ -429,8 +434,13 @@ def open_spellcheck(
 ) -> SpellcheckDialog:
     try:
         names = lore.wszystkie_wpisy()
-    except Exception:
+    except Exception as e:
         names = []
+        messagebox.showwarning(
+            "Pisownia",
+            f"Nie wczytano nazw lore — sprawdzanie bez słownika projektu:\n{e}",
+            parent=parent,
+        )
     checker = SpellChecker(project_root=project_root, lore_names=names)
 
     def _lore_lookup(word: str) -> None:

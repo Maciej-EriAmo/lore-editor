@@ -33,24 +33,31 @@ def load_astraedit_gui() -> Type:
             if p.is_file() and p not in scripts:
                 scripts.append(p)
 
+    errors: list[str] = []
     for script in scripts:
         try:
             spec = importlib.util.spec_from_file_location("astraedit_mod", script)
             if spec is None or spec.loader is None:
+                errors.append(f"{script}: brak loadera")
                 continue
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             if hasattr(mod, "AstraEditGUI"):
                 return mod.AstraEditGUI
-        except Exception:
-            continue
+            errors.append(f"{script}: brak klasy AstraEditGUI")
+        except Exception as e:
+            errors.append(f"{script}: {e}")
 
     try:
         from AstraEdit import AstraEditGUI  # type: ignore
         return AstraEditGUI
-    except ImportError:
-        pass
+    except ImportError as e:
+        errors.append(f"import AstraEdit: {e}")
 
+    extra = ""
+    if errors:
+        extra = " Błędy ładowania:\n" + "\n".join(errors)
     raise ImportError(
         "Brak AstraEdit. Uruchom scripts/install_writer.ps1 lub ustaw ASTRAEDIT_PATH."
+        + extra
     )

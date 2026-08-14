@@ -218,6 +218,30 @@ Trusted LAN/VPN only — do not expose cynober-server on the public internet wit
 
 If `cynober-server` is not on PATH (Windows): `python -m cynober_server`.
 
+### Media (photos, audio, video)
+
+**Menu bar → Media** (also shortcuts and the Media frame in the Lore panel):
+
+| Action | Where | Shortcut |
+|--------|--------|----------|
+| Add photo / image | Media · Lore · panel **+ Photo** | `Ctrl+Shift+I` |
+| Add music / audio | Media · panel **+ Audio** | `Ctrl+Shift+U` |
+| Add video / clip | Media · panel **+ Video** | `Ctrl+Shift+M` |
+| Preview / list / export | Media menu · panel | — |
+
+**Steps:** select a lore entry (character, place…) → Media → file → role (portrait, voice, clip…).
+
+| | Local | `--rpc` (cynober-server) |
+|--|--------|---------------------------|
+| **Attach** | atom on bubble → `.kafd` | `put_media` (KAFS) |
+| **List** | bindings on bubble | `MEDIA LIST "Entity"` |
+| **Preview** | canvas / system player | `get_media` → same UI |
+| **Requires** | cynober-db | **≥ 8.2.2**, **kafs-stream** session |
+
+Formats: PNG/JPEG/GIF/WebP · WAV/MP3/OGG · MP4/WebM/MKV.  
+F1 → topic **Media (photos, audio, video)**.  
+Without KAFS, network upload will not work — you get a warning on connect.
+
 ### Team sync (Team tab)
 
 **cynober_replicate** (push / pull / sync) — again TCP to **cynober-server**, not FTP of `.kafd`. Requires local mode with a saved project file. Same auth rules as RPC: non-loopback hosts need user+token (Team panel fields or `LORE_RPC_*`).
@@ -241,15 +265,15 @@ Help: **Help → Network: Karmazyn and Cynober DB** (F1).
 | Topic | Content |
 |-------|---------|
 | Writer’s guide | Quick start, save, history, UI language |
-| Keyboard shortcuts | Ctrl+S, Ctrl+W, Ctrl+F… |
+| Keyboard shortcuts | Ctrl+S, media shortcuts, Ctrl+F… |
 | Fonts and appearance | Draft / print / accessibility presets |
 | Print and export | Page preview, DOCX, screenplay |
-| Lore panel | Characters, links, team sync |
+| Lore panel | Characters, links, media frame, team sync |
+| Media (photos, audio, video) | Menu Media, roles, formats, KAFS |
 | Dictionary and spelling | Lore names, F7, SJP / EN |
 | Temporal context | Per-chapter character state |
 | Semantic queries | Graph search |
 | Change history | Snapshots, restore |
-| Files and Lore Pack | What is inside `.kafd` |
 | Network: Karmazyn and Cynober DB | Protocol and `--rpc` |
 | About | Version, licenses |
 
@@ -267,6 +291,9 @@ Help: **Help → Network: Karmazyn and Cynober DB** (F1).
 |----------|--------|
 | Ctrl+N | New tab |
 | Ctrl+O | Open |
+| Ctrl+Shift+I | Add photo / image to selected lore entry |
+| Ctrl+Shift+U | Add audio |
+| Ctrl+Shift+M | Add video |
 | Ctrl+S | Save chapter **and** lore (transactional) |
 | Ctrl+Shift+S | Save as… |
 | Ctrl+W | Close tab |

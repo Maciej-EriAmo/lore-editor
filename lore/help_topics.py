@@ -95,16 +95,23 @@ EDYCJA
   Ctrl+Shift+O    Katalog projektu…
   F7              Sprawdź pisownię
 
+MEDIA (zaznacz wpis lore na liście panelu)
+  Ctrl+Shift+I    Dodaj zdjęcie / grafikę
+  Ctrl+Shift+U    Dodaj muzykę / dźwięk
+  Ctrl+Shift+M    Dodaj film / klip
+
 INNE
   F1              Ta pomoc (przewodnik)
   Środkowy klik   Zamknij kartę (na nazwie karty)
   × na karcie     Zamknij kartę
 
 MENU LORE
-  Odśwież panel
-  Zapisz projekt lore
-  Utwórz punkt przywracania…
-  Historia zmian…
+  Odśwież panel · Zapisz projekt lore
+  Utwórz punkt przywracania… · Historia zmian…
+  (skróty do dodawania mediów)
+
+MENU MEDIA
+  Dodaj zdjęcie / muzykę / film · Podgląd · Lista · Eksport
 
 Autosave: co 60 s (tylko zapisane pliki) — tekst + lore + snapshot.
 """,
@@ -233,10 +240,50 @@ LISTA ROZDZIAŁU
   Badge [gorą] / [ciep] / [zimn] — jak świeży jest wpis.
   Wpisy „grobowca” są ukryte (dawny balast).
 
+MEDIA (ramka na dole panelu + menu belki «Media»)
+  + Zdjęcie / + Dźwięk / + Film  — dołącz plik do zaznaczonego wpisu
+  Podgląd media · lista · eksport
+  Krok: zaznacz postać/miejsce na liście → Media → wybierz plik → rola (portret/głos/klip)
+  Szczegóły: temat „Media (zdjęcia, dźwięk, film)”
+
 INNE
   Mapa powiązań   Graf wokół rozdziału lub wpisu
   Szukaj          Zapytania semantyczne — patrz temat „Zapytania semantyczne”
   Zespół          Sync przez cynober-server (protokół Karmazyn — patrz temat Sieć)
+""",
+)
+
+_topic(
+    "Media (zdjęcia, dźwięk, film)",
+    """
+Gdzie: menu belki «Media» · skróty · panel Lore → ramka Media.
+
+DODAWANIE
+1. Zaznacz wpis na liście lore (postać, miejsce, scena…).
+2. Media → Dodaj zdjęcie / muzykę / film (albo +Zdjęcie w panelu).
+3. Wybierz plik; podaj rolę (binding): portret, mapa, głos, klip…
+4. Plik trafia do grafu (.kafd) jako atom mediów przy bąblu wpisu.
+
+SKRÓTY
+  Ctrl+Shift+I   zdjęcie / grafika
+  Ctrl+Shift+U   muzyka / dźwięk
+  Ctrl+Shift+M   film / klip
+
+PODGLĄD I EKSPORT
+  Podgląd / odtwórz…  — obraz w oknie; audio/wideo przez player systemowy
+  Pokaż listę mediów  — bindingi przy wpisie
+  Eksportuj…          — zapisz medium z powrotem na dysk
+
+FORMATY
+  Obrazy: PNG JPEG GIF WebP BMP
+  Audio:  WAV MP3 OGG FLAC M4A
+  Wideo:  MP4 WebM MKV MOV
+
+SIEĆ (--rpc)
+  Wymaga cynober-server z kafs-stream (cynober-db ≥ 8.2.2).
+  Upload: put_media · lista: MEDIA LIST · odczyt: get_media.
+
+Bez zaznaczenia wpisu edytor poprosi o wybór z listy panelu.
 """,
 )
 
@@ -450,12 +497,16 @@ BAZA DANYCH
   Zapytania: KarminQL (ukryte pod API LoreStore dla pisarza).
 
 GRAFIKI / MEDIA (teraz)
-  Panel lore: «Dołącz plik…» (portret/klip) · «Podgląd media…»
-  Lokalnie: plik → atom w bąblu encji (karmazyn_media), zapis w .kafd
-  RPC (--rpc): wymaga cynober-server z KAFS (kafs-stream);
-    upload put_media, lista MEDIA LIST, podgląd get_media
-  Formaty: PNG/JPEG/GIF/WebP (+ audio); wideo — player systemowy
-  Rola bindingu domyślnie: portret
+  Menu belki «Media»:
+    Dodaj zdjęcie / grafikę…   (Ctrl+Shift+I)
+    Dodaj muzykę / dźwięk…     (Ctrl+Shift+U)
+    Dodaj film / klip…         (Ctrl+Shift+M)
+    Podgląd / odtwórz… · lista mediów · eksport do pliku
+  Panel Lore (prawo) → ramka «Media»: +Zdjęcie · +Dźwięk · +Film
+  Krok: 1) zaznacz postać/miejsce na liście  2) Media → dodaj plik  3) rola (portret/głos/klip)
+  Lokalnie: plik → atom w bąblu (karmazyn_media) → .kafd
+  RPC (--rpc): cynober-server + KAFS (put_media / MEDIA LIST / get_media)
+  Formaty: PNG/JPEG/GIF/WebP/BMP · WAV/MP3/OGG · MP4/WebM/MKV
 """,
 )
 
@@ -505,10 +556,13 @@ _HELP_ID_TO_PL: dict[str, str] = {
     "fonts": "Czcionki i wygląd",
     "print": "Wydruk i eksport",
     "panel": "Panel Lore",
+    "media": "Media (zdjęcia, dźwięk, film)",
     "spell": "Słownik i pisownia",
     "temporal": "Kontekst czasowy",
     "query": "Zapytania semantyczne",
     "history": "Historia zmian",
+    "network": "Sieć: Karmazyn i Cynober DB",
+    "about": "O programie",
 }
 
 # klucz i18n → tytuł PL (gdy paczka nie ma help.json)
@@ -518,10 +572,13 @@ _I18N_KEY_TO_PL: dict[str, str] = {
     "help.fonts": "Czcionki i wygląd",
     "help.print": "Wydruk i eksport",
     "help.panel": "Panel Lore",
+    "help.media": "Media (zdjęcia, dźwięk, film)",
     "help.spell": "Słownik i pisownia",
     "help.temporal": "Kontekst czasowy",
     "help.query": "Zapytania semantyczne",
     "help.history": "Historia zmian",
+    "help.network": "Sieć: Karmazyn i Cynober DB",
+    "help.about": "O programie",
 }
 
 
@@ -536,7 +593,7 @@ def _active_topics() -> dict[str, tuple[str, str]]:
     out: dict[str, tuple[str, str]] = dict(TOPICS)
     try:
         from lore.i18n.core import help_topic_map, t
-    except Exception:
+    except ImportError:
         return out
 
     # 1) nadpisania z help.json
@@ -589,15 +646,14 @@ def get_topic(title: str) -> tuple[str, str]:
     for i18n_key, pl_title in _I18N_KEY_TO_PL.items():
         try:
             from lore.i18n import t
-
-            if title in (pl_title, t(i18n_key)):
-                loc = t(i18n_key)
-                if loc in topics:
-                    return topics[loc]
-                if pl_title in TOPICS:
-                    return (loc, TOPICS[pl_title][1])
-        except Exception:
+        except ImportError:
             break
+        if title in (pl_title, t(i18n_key)):
+            loc = t(i18n_key)
+            if loc in topics:
+                return topics[loc]
+            if pl_title in TOPICS:
+                return (loc, TOPICS[pl_title][1])
     if DEFAULT_TOPIC in topics:
         return topics[DEFAULT_TOPIC]
     if topics:

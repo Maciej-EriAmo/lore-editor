@@ -77,9 +77,16 @@ def _schedule_layout_refresh(root, gui_app) -> None:
     root.after(300, _refresh)
 
 
+def should_flush_lore_after_save(tab) -> bool:
+    """Nie flushuj lore, gdy zapis tekstu się nie udał / został anulowany."""
+    if tab is None:
+        return False
+    return not bool(getattr(tab, "is_modified", False))
+
+
 def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     import tkinter as tk
-    from tkinter import filedialog
+    from tkinter import filedialog, messagebox
 
     from lore.document_hooks import on_file_opened, on_file_saved
     from lore.panel import LorePanel
@@ -132,7 +139,14 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
         result = orig_open(file_path, *args, **kwargs)
         path = str(Path(file_path).resolve())
         if os.path.isfile(path):
-            on_file_opened(lore, path, right)
+            try:
+                on_file_opened(lore, path, right)
+            except Exception as e:
+                messagebox.showerror(
+                    "Lore",
+                    f"Plik otwarty, ale lore nie: {e}",
+                    parent=root,
+                )
         return result
 
     gui_app.open_file = open_with_lore
@@ -155,8 +169,15 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
     def save_with_lore(*args, **kwargs):
         result = orig_save(*args, **kwargs)
         path = current_file()
-        if path:
-            on_file_saved(lore, path, right)
+        if path and should_flush_lore_after_save(_active_tab()):
+            try:
+                on_file_saved(lore, path, right)
+            except Exception as e:
+                messagebox.showerror(
+                    "Lore",
+                    f"Tekst zapisany, ale lore nie: {e}",
+                    parent=root,
+                )
         return result
 
     gui_app.save_current = save_with_lore
@@ -167,8 +188,15 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
         def save_as_with_lore(*args, **kwargs):
             result = orig_save_as(*args, **kwargs)
             path = current_file()
-            if path:
-                on_file_saved(lore, path, right)
+            if path and should_flush_lore_after_save(_active_tab()):
+                try:
+                    on_file_saved(lore, path, right)
+                except Exception as e:
+                    messagebox.showerror(
+                        "Lore",
+                        f"Tekst zapisany, ale lore nie: {e}",
+                        parent=root,
+                    )
             return result
 
         gui_app.save_as = save_as_with_lore
@@ -191,8 +219,12 @@ def attach_lore_to_astraedit(gui_app, lore: "LoreStore") -> None:
         lm.add_command(label="Odśwież panel lore", command=right.odswiez)
         lm.add_command(label="Zapisz projekt lore", command=lore.zapisz)
         mb.add_cascade(label="Lore", menu=lm)
-    except Exception:
-        pass
+    except Exception as e:
+        messagebox.showwarning(
+            "Lore",
+            f"Nie dodano menu Lore (panel po prawej nadal działa):\n{e}",
+            parent=root,
+        )
 
     path = current_file()
     if path and os.path.isfile(path):

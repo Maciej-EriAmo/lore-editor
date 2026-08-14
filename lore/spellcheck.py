@@ -149,6 +149,10 @@ def backend_label(lang: str | None = None) -> str:
     if code == "pl":
         if sjp_available():
             return "SJP.PL (hunspell) + lore"
+        aff = Path(str(_SJP_BASE) + ".aff")
+        dic = Path(str(_SJP_BASE) + ".dic")
+        if aff.is_file() and dic.is_file():
+            return "SJP.PL nie wczytany + lore"
         return "lista częstych PL + lore"
     return f"lore + project dict ({code})"
 
@@ -231,6 +235,14 @@ class ProjectSpellingDict:
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
+            from lore.paths import quarantine_corrupt
+
+            quarantine_corrupt(self.path)
+            return
+        if not isinstance(data, dict):
+            from lore.paths import quarantine_corrupt
+
+            quarantine_corrupt(self.path)
             return
         for w in data.get("words") or []:
             s = str(w).strip().casefold()

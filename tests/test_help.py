@@ -4,6 +4,7 @@ import unittest
 
 from lore import __version__
 from lore.help_topics import DEFAULT_TOPIC, get_topic, topic_titles
+from lore.help_view import resolve_help_title
 from lore.i18n import discover_and_load, set_locale
 
 
@@ -50,6 +51,13 @@ class TestHelpTopics(unittest.TestCase):
         title, body = get_topic("Writer's guide")
         self.assertEqual(title, "Writer's guide")
         self.assertGreater(len(body), 20)
+
+    def test_resolve_help_title_nie_spada_na_pl(self):
+        en = ["Writer's guide", "Keyboard shortcuts"]
+        self.assertEqual(resolve_help_title("Writer's guide", en), "Writer's guide")
+        self.assertEqual(resolve_help_title(DEFAULT_TOPIC, en), "Writer's guide")
+        self.assertEqual(resolve_help_title("nie ma", en), "Writer's guide")
+        self.assertIsNone(resolve_help_title("x", []))
 
 
 if __name__ == "__main__":

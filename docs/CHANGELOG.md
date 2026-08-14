@@ -2,6 +2,51 @@
 
 Format: skrót dla deweloperów i pisarzy. Szczegóły w README / F1.
 
+## 0.7.8
+
+### Porządek (uczciwość)
+- RPC `lista_mediow`: błąd tunelu/serwera nie udaje pustej listy.
+- `_resolve_media_atom_id` nie zmyśla `m_{encja}_{rola}` gdy listy nie ma.
+- `session_info` legacy nie zgłasza `connected: True` bez gniazda.
+- `_run_line`: `status=error` zawsze wyjątek (nie „brak wyników”).
+- Historia: zepsuty/brakujący manifest odtwarzany z `snapshots/`.
+- Odczyt: brak pliku to OSError, nie „plik binarny”.
+- Zmiana katalogu: błąd przywrócenia poprzedniego projektu nie jest połykany.
+- Zapis karty: `end-1c` zamiast `tk.END` (nie dopisuje dodatkowego `\\n` przy każdym Ctrl+S).
+- `write_text`: `errors=strict` — nie zamienia cicho znaków na `?`.
+- Uszkodzony JSON (sesja, locale, typografia, słownik pisowni): kwarantanna `*.bak`, nie nadpisanie.
+- `parse_stany`: zły JSON to wyjątek, nie puste stany.
+- Mapa lore: błąd otwarcia rozdziału nie udaje pustego grafu.
+- Historia strict: nieudane usunięcie sieroty to błąd, nie „pełny restore”.
+- `read_kafd_vfs_meta`: `store_stats.error` to wyjątek, nie pusta meta.
+- `world_meta_from_disk`: zepsuty sidecar → `*.bak`; bez fallbacku błąd .kafd nie jest ukrywany.
+- `sync_atom_id_counter`: jak API i fallback padną — wyjątek, nie cichy licznik.
+- AstraEdit: zapis anulowany/nieudany nie flushuje lore; błąd lore po zapisie jest widoczny; menu Lore nie znika po cichu.
+- Loader AstraEdit: „Brak AstraEdit” zawiera przyczyny nieudanego importu.
+- Lista przy rozdziale: zepsuty podgląd = typ „błąd” + komunikat, nie „?”.
+- Po restore: nieczytelna karta to ostrzeżenie, nie pominięcie.
+- Pomoc F1: przy locale EN nie spada na PL tytuł (crash `index`).
+- `help_topics`: tylko `ImportError` na i18n — inne błędy nie są chowane.
+- Paczka locale z pustym/zepsutym `ui.json` nie rejestruje się jako język.
+- Entry-point locale: `warnings.warn`, nie ciche `continue`.
+- Jawny profil RPC (`--profile`) + błąd configu = wyjątek, nie puste creds.
+- `scripts/dev`: `ROOT` to repo, nie `scripts/` (audyt nie udaje braku `.kafd`).
+- SJP: pliki są, a hunspell nie wstał → „SJP.PL nie wczytany”, nie „brak słownika”.
+
+### Media — menu i panel
+- **Menu „Media”** na belce: dodaj zdjęcie / muzykę / film / dowolny plik, podgląd, lista, eksport.
+- Duplikaty w **Lore** + skróty: `Ctrl+Shift+I` (obraz), `Ctrl+Shift+U` (audio), `Ctrl+Shift+M` (wideo).
+- Panel Lore: ramka **Media** z przyciskami +Zdjęcie / +Dźwięk / +Film.
+- F1: temat **Media (zdjęcia, dźwięk, film)** · pełny **EN** (`locales/en/help.json` + ui).
+- README / README_EN zaktualizowane.
+
+### Media — naprawy backendu
+- **Nuitka / wheel:** `karmazyn_media*` + `cynober_media_rpc` + PIL w buildzie; `pyproject` cynober-db eksportuje preview/canvas.
+- **Lazy load:** atomy `media` / `media_seg` nie są zwijane; T mediów ≥ T_HOT.
+- **Restore bąbli:** bindings z `metadata.v.bindings` (nie tylko top-level).
+- **GUI:** filetypes z spacjami (Windows Tk); dirty rejestru po `dodaj_media`.
+- **Weryfikacja:** `tests/test_media_lore_store.py`, `scripts/dev/verify_media_pipeline.py` (`--rpc` opcjonalnie).
+
 ## 0.7.6
 
 ### Grafiki / media (teraz)

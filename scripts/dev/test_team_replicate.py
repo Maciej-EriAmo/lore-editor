@@ -21,7 +21,7 @@ import tempfile
 import time
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[1]
+_ROOT = Path(__file__).resolve().parents[2]
 _DBASE = Path(r"C:\Users\drwis\DBase")
 for p in (_DBASE, _ROOT):
     s = str(p)

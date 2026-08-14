@@ -166,11 +166,7 @@ def main() -> None:
         initial.append(args.file)
     initial.extend(args.files)
 
-    # Względne ścieżki plików: najpierw względem cwd wywołania, potem katalogu projektu
     project_dir = args.project_dir
-    if project_dir is None and not os.environ.get("LORE_PROJECT_DIR", "").strip():
-        # allow discover() to pick default; resolve file paths after open
-        pass
 
     resolved_initial: list[str] = []
     for f in initial:

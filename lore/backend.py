@@ -262,8 +262,10 @@ class RpcLoreBackend:
         fn = getattr(self._client, "session_info", None)
         if callable(fn):
             return dict(fn())
+        # Stary klient bez session_info — nie zgłaszaj connected bez gniazda.
+        sock = getattr(self._client, "sock", None)
         return {
-            "connected": True,
+            "connected": sock is not None,
             "kafs_enabled": bool(getattr(self._client, "kafs_enabled", False)),
             "legacy_client": True,
         }
@@ -370,8 +372,11 @@ def _resolve_rpc_credentials(
                     u = str(prof.get("user") or prof.get("username") or "").strip()
                 if not t:
                     t = str(prof.get("token") or prof.get("password") or "").strip()
-        except Exception:
-            pass
+        except Exception as e:
+            if profile:
+                raise LoreBackendError(
+                    f"Nie wczytano profilu RPC „{profile}”: {e}"
+                ) from e
     return (u or None, t or None)
 
 

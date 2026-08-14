@@ -134,6 +134,16 @@ class TestProjectSpellingDict(unittest.TestCase):
             d2 = ProjectSpellingDict(Path(tmp))
             self.assertEqual(d.words, d2.words)
 
+    def test_uszkodzony_plik_idzie_do_bak(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            broken = root / SPELLING_FILE
+            broken.write_text("{nie json", encoding="utf-8")
+            d = ProjectSpellingDict(root)
+            self.assertEqual(d.words, set())
+            self.assertFalse(broken.is_file())
+            self.assertTrue((root / f"{SPELLING_FILE}.bak").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

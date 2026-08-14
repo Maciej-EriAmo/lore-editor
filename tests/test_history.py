@@ -127,6 +127,19 @@ class TestLoreHistoria(unittest.TestCase):
         self.assertEqual(a.read_text(encoding="utf-8"), "A")
         self.assertTrue(b.exists())
 
+    def test_zepsuty_manifest_odtwarza_z_katalogow(self):
+        root = self._paths.root
+        (root / "a.txt").write_text("A", encoding="utf-8")
+        hist = LoreHistoria(root, self._project)
+        hist.inicjalizuj()
+        snap = hist.utworz(label="żywy", force=True)
+        self.assertIsNotNone(snap)
+        (hist.katalog / "manifest.json").write_text("{nie json", encoding="utf-8")
+        listed = hist.lista()
+        self.assertEqual(len(listed), 1)
+        self.assertEqual(listed[0].id, snap.id)
+        self.assertEqual(listed[0].reason, "recovered")
+
 
 if __name__ == "__main__":
     unittest.main()

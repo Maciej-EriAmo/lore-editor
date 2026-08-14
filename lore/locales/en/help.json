@@ -1,14 +1,50 @@
 {
   "writer_guide": {
     "title": "Writer's guide",
-    "body": "Lore Editor — chapter writing with a lore panel (characters, ideas, influences).\n\nQUICK START\n1. Run: lore-editor\n2. File → Open… — pick a chapter (.txt / .md).\n3. Lore panel (right) → + Character / + Idea / + Influence.\n4. Ctrl+S saves chapter and lore together.\n5. Optional: Ctrl+Shift+D (name dictionary) · F7 (spelling).\n\nLANGUAGE\nMenu Language (or LORE_LOCALE=en). See docs/PLUGINY_JEZYKOWE.md for locale plugins.\n\nNETWORK\n--rpc uses cynober-server (Karmazyn tunnel, not plain HTTP).\nAuth: LORE_RPC_USER / LORE_RPC_TOKEN or profile user/token in ~/.karmazyn_client.json."
+    "body": "Lore Editor — chapter writing with a lore panel (characters, ideas, influences, media).\n\nQUICK START\n1. Run: lore-editor\n2. File → Open… — pick a chapter (.txt / .md).\n3. Lore panel (right) → + Character / + Idea / + Influence.\n4. Ctrl+S saves chapter and lore together.\n5. Media: select an entry → Media menu → Add photo / audio / video.\n6. Optional: Ctrl+Shift+D (name dictionary) · F7 (spelling).\n\nLANGUAGE\nMenu Language (or LORE_LOCALE=en). See docs/LANGUAGE_PLUGINS.md.\n\nNETWORK\n--rpc uses cynober-server (Karmazyn tunnel, not plain HTTP).\nAuth: LORE_RPC_USER / LORE_RPC_TOKEN or profile in ~/.karmazyn_client.json."
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
-    "body": "Ctrl+N  New tab\nCtrl+O  Open\nCtrl+S  Save\nCtrl+Shift+S  Save as\nCtrl+W  Close tab\nCtrl+F  Find\nCtrl+Shift+D  Name dictionary\nF7  Spell check\nF1  Help\nCtrl+Z / Ctrl+Y  Undo / Redo"
+    "body": "FILE\n  Ctrl+N           New tab\n  Ctrl+O           Open\n  Ctrl+S           Save chapter + lore\n  Ctrl+Shift+S     Save as…\n  Ctrl+W           Close tab\n  Ctrl+Shift+O     Project folder…\n\nEDIT\n  Ctrl+Z / Ctrl+Y  Undo / Redo\n  Ctrl+F           Find\n  Ctrl+Shift+D     Name dictionary\n  F7               Spell check\n\nMEDIA (select a lore entry in the panel first)\n  Ctrl+Shift+I     Add photo / image\n  Ctrl+Shift+U     Add music / audio\n  Ctrl+Shift+M     Add video / clip\n\nOTHER\n  F1               Help\n  Middle-click tab  Close tab\n\nAutosave every 60 s for files already on disk (text + lore)."
+  },
+  "fonts": {
+    "title": "Fonts and appearance",
+    "body": "Menu: View\n\nDRAFTING — long writing sessions\n  Courier New / Courier Prime / Calibri / Arial\n\nPRINT / SUBMISSION\n  Garamond · Times New Roman\n\nREADABILITY\n  OpenDyslexic · Lexend\n\nSize: 11 or 12 pt\nLine spacing: 1.5 draft · 1.0 print-ready\n\nSaved in: %USERPROFILE%\\.lore_editor\\typography.json\nOptional fonts: .\\scripts\\install_fonts.ps1"
+  },
+  "print": {
+    "title": "Print and export",
+    "body": "Menu: Print\n\nPAGE PREVIEW\n  Screenplay (Courier) — ~1 page ≈ 1 film minute\n  Submission manuscript — TNR 12, double spacing\n  Print-ready — TNR 12, single spacing\n\nDOCX EXPORT\n  Same profiles; requires python-docx (package dependency).\n  Check DOCX in Word before publisher submission."
+  },
+  "panel": {
+    "title": "Lore panel",
+    "body": "Right-hand panel — tabs: Chapter · Search · Team.\n\nOpen a chapter before linking lore.\n\nADD\n  + Character · + Idea · + Influence\n\nLINKS\n  Link to chapter · Link another entry · Connect to… · Unlink · Edit · Delete\n\nMEDIA (frame at bottom of Chapter tab + menu bar Media)\n  + Photo · + Audio · + Video · Attach any file\n  Preview · List media · Export to file\n  Select an entry first, then attach; set a role (portrait, voice, clip…)\n  See topic: Media (photos, audio, video)\n\nOTHER\n  Relationship map · Semantic search · Team sync (cynober-server)"
+  },
+  "media": {
+    "title": "Media (photos, audio, video)",
+    "body": "Where: menu bar Media · shortcuts · Lore panel → Media frame.\n\nADD\n1. Select a lore entry (character, place, scene…).\n2. Media → Add photo / music / video (or + Photo in the panel).\n3. Pick a file; set a role (binding): portrait, map, voice, clip…\n4. Stored in the .kafd graph as a media atom on the entry bubble.\n\nSHORTCUTS\n  Ctrl+Shift+I   photo / image\n  Ctrl+Shift+U   music / audio\n  Ctrl+Shift+M   video / clip\n\nPREVIEW & EXPORT\n  Preview / play…   image window; audio/video via system player\n  List entry media  bindings on the entry\n  Export…           write media back to disk\n\nFORMATS\n  Images: PNG JPEG GIF WebP BMP\n  Audio:  WAV MP3 OGG FLAC M4A\n  Video:  MP4 WebM MKV MOV\n\nNETWORK (--rpc)\n  Needs cynober-server with kafs-stream (cynober-db ≥ 8.2.2).\n  Upload: put_media · list: MEDIA LIST · read: get_media.\n\nIf no entry is selected, the editor asks you to pick one from the panel list."
   },
   "spell": {
     "title": "Dictionary and spelling",
     "body": "F7 checks spelling offline.\n• pl — SJP.PL hunspell (bundled)\n• en — hunspell en_US if present under lore/data/en_US, else project/lore names + common list\n\nNames from the lore graph are always accepted."
+  },
+  "temporal": {
+    "title": "Temporal context",
+    "body": "Character notes/descriptions can differ per chapter (timeline).\nEdit entry while a chapter is open to store state for that chapter.\nSee Polish base topic for full detail if a section is missing."
+  },
+  "query": {
+    "title": "Semantic queries",
+    "body": "Search tab: semantic or phrase queries over the lore graph.\nExamples: characters near Anna · type:Character \"ally\".\nResults can be linked to the current chapter."
+  },
+  "history": {
+    "title": "Change history",
+    "body": "Lore → Create restore point… / Change history…\nSnapshots cover lore + chapter files under .lore-history/.\nInclude that folder in backups."
+  },
+  "network": {
+    "title": "Network: Karmazyn and Cynober DB",
+    "body": "--rpc connects to cynober-server over the Karmazyn tunnel (not plain HTTP).\nPort 8080 is the secure server, not a REST API.\n\nAuth: non-loopback hosts need user+token (LORE_RPC_USER / LORE_RPC_TOKEN or Team panel).\nMedia over the wire needs kafs-stream (cynober-db ≥ 8.2.2).\n\nChapters stay local; the lore graph (+ optional media) goes over the network."
+  },
+  "about": {
+    "title": "About",
+    "body": "Lore Editor — writing tool on Cynober DB (Karmazyn atoms, .kafd).\nOffline-first; optional RPC team sync.\nLicense: MIT · github.com/Maciej-EriAmo/lore-editor"
   }
 }

@@ -24,9 +24,30 @@ _PL_UI: Dict[str, str] = {
     "menu.file": "Plik",
     "menu.edit": "Edycja",
     "menu.lore": "Lore",
+    "menu.media": "Media",
     "menu.view": "Wygląd",
     "menu.print": "Wydruk",
     "menu.help": "Pomoc",
+    "media.attach_image": "Dodaj zdjęcie / grafikę…",
+    "media.attach_audio": "Dodaj muzykę / dźwięk…",
+    "media.attach_video": "Dodaj film / klip…",
+    "media.attach_any": "Dołącz dowolny plik…",
+    "media.preview": "Podgląd / odtwórz…",
+    "media.export": "Eksportuj media do pliku…",
+    "media.list": "Pokaż listę mediów wpisu",
+    "media.hint_select": "Najpierw wybierz postać / miejsce / wpis na panelu Lore (lista po prawej).",
+    "media.role_image": "Rola grafiki (portret, mapa, rekwizyt…):",
+    "media.role_audio": "Rola dźwięku (głos, motyw, ambience…):",
+    "media.role_video": "Rola filmu (klip, cutscene, ref…):",
+    "media.role_any": "Rola pliku (portret, głos, klip…):",
+    "media.ft_images": "Obrazy",
+    "media.ft_audio": "Audio",
+    "media.ft_video": "Wideo",
+    "media.ft_all": "Wszystkie",
+    "media.none": "Brak mediów przy „{name}”.",
+    "media.list_title": "Media — {name}",
+    "media.export_title": "Zapisz medium jako…",
+    "media.export_ok": "Zapisano {path} ({size} B).",
     "file.new": "Nowy",
     "file.open": "Otwórz…",
     "file.save": "Zapisz",
@@ -58,10 +79,13 @@ _PL_UI: Dict[str, str] = {
     "help.fonts": "Czcionki i wygląd",
     "help.print": "Wydruk i eksport",
     "help.panel": "Panel Lore",
+    "help.media": "Media (zdjęcia, dźwięk, film)",
     "help.spell": "Słownik i pisownia",
     "help.temporal": "Kontekst czasowy",
     "help.query": "Zapytania semantyczne",
     "help.history": "Historia zmian",
+    "help.network": "Sieć: Karmazyn i Cynober DB",
+    "help.about": "O programie",
     "spell.lang": "Język korekty",
     "status.close_save_failed": "Nie zapisano lore przy zamykaniu: {error}",
     "status.autosave_failed": "Autosave nieudany: {error}",
@@ -81,7 +105,11 @@ _PL_UI: Dict[str, str] = {
     "panel.connect": "Połącz z…",
     "panel.unlink": "Odłącz od rozdziału",
     "panel.edit_entry": "Edytuj wpis",
+    "panel.media_box": "Media (zdjęcie / dźwięk / film)",
     "panel.attach_media": "Dołącz plik…",
+    "panel.attach_image": "+ Zdjęcie",
+    "panel.attach_audio": "+ Dźwięk",
+    "panel.attach_video": "+ Film",
     "panel.preview_media": "Podgląd media…",
     "panel.media_role_prompt": "Rola pliku (portret, głos, klip…):",
     "panel.media_attached": "Dołączono „{role}” ({size} B, {mime}).",
@@ -148,6 +176,9 @@ def load_settings() -> dict:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (OSError, json.JSONDecodeError):
+        from lore.paths import quarantine_corrupt
+
+        quarantine_corrupt(path)
         return {}
 
 
@@ -178,11 +209,24 @@ def load_locale_dir(directory: Path, *, source: str = "dir") -> Optional[LocaleP
       ui.json    — klucz → string
       help.json  — opcjonalnie { "topic_id": { "title", "body" } }
     """
+    import warnings
+
     directory = Path(directory)
     if not directory.is_dir():
         return None
+    ui_path = directory / "ui.json"
+    if not ui_path.is_file():
+        return None
+    try:
+        ui_raw = json.loads(ui_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        warnings.warn(f"Paczka locale {directory}: uszkodzony ui.json ({e})", UserWarning)
+        return None
+    if not isinstance(ui_raw, dict) or not ui_raw:
+        warnings.warn(f"Paczka locale {directory}: pusty ui.json — nie rejestruję.", UserWarning)
+        return None
     meta = _load_json(directory / "meta.json")
-    ui_map = _load_json(directory / "ui.json")
+    ui_map = ui_raw
     help_raw = _load_json(directory / "help.json")
     code = str(meta.get("code") or directory.name).strip().lower()
     if not code:
@@ -256,9 +300,15 @@ def _load_entry_points() -> None:
                         register_pack(pack)
                 elif isinstance(obj, (str, Path)):
                     load_locale_dir(Path(obj), source="entrypoint")
-            except Exception:
+            except Exception as e:
+                import warnings
+
+                warnings.warn(f"Nie załadowano locale entry-point {ep}: {e}", UserWarning)
                 continue
-    except Exception:
+    except Exception as e:
+        import warnings
+
+        warnings.warn(f"Nie odczytano entry-points lore_editor.locale: {e}", UserWarning)
         return
 
 

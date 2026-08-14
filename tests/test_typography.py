@@ -65,6 +65,16 @@ class TestTypography(unittest.TestCase):
             self.assertEqual(loaded.size, 12)
             self.assertEqual(loaded.line_spacing, 1.0)
 
+    def test_uszkodzony_json_idzie_do_bak(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "typography.json"
+            path.write_text("{nie json", encoding="utf-8")
+            with mock.patch("lore.typography.SETTINGS_FILE", path):
+                loaded = load_typography_settings()
+            self.assertEqual(loaded, TypographySettings())
+            self.assertFalse(path.is_file())
+            self.assertTrue(path.with_name("typography.json.bak").is_file())
+
     def test_settings_summary(self):
         s = TypographySettings(preset_id="drafting_calibri")
         text = settings_summary(s, family="Calibri")
