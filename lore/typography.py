@@ -14,7 +14,9 @@ except ImportError:
     tk = None  # type: ignore
     tkfont = None  # type: ignore
 
-SETTINGS_DIR = Path.home() / ".lore_editor"
+from lore.paths import settings_dir as _lore_settings_dir
+
+SETTINGS_DIR = _lore_settings_dir()
 SETTINGS_FILE = SETTINGS_DIR / "typography.json"
 
 TAG_BODY = "lore_body"

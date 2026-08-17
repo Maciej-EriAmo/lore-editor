@@ -30,8 +30,32 @@ _APP_EXE_NAMES = frozenset(
     }
 )
 
-# Sesja: ostatni katalog + ostatni plik (GUI / start aplikacji)
-SETTINGS_DIR = Path.home() / ".lore_editor"
+def settings_dir() -> Path:
+    """Sesja i ustawienia — LOCALAPPDATA\\lore-editor, nie katalog kodu/instalacji."""
+    raw = (os.environ.get("LORE_EDITOR_DATA_HOME") or "").strip()
+    if raw:
+        dest = Path(raw).expanduser()
+    else:
+        local = (os.environ.get("LOCALAPPDATA") or "").strip()
+        dest = Path(local) / "lore-editor" if local else Path.home() / ".lore_editor"
+    dest.mkdir(parents=True, exist_ok=True)
+    legacy = Path.home() / ".lore_editor"
+    if legacy.is_dir() and legacy.resolve() != dest.resolve():
+        import shutil
+
+        for child in legacy.iterdir():
+            target = dest / child.name
+            if target.exists():
+                continue
+            if child.is_dir():
+                shutil.copytree(child, target)
+            else:
+                shutil.copy2(child, target)
+        shutil.rmtree(legacy, ignore_errors=True)
+    return dest
+
+
+SETTINGS_DIR = settings_dir()
 LAST_WORK_DIR_FILE = SETTINGS_DIR / "last_work_dir.json"
 
 
@@ -299,7 +323,7 @@ class ProjectPaths:
             if env:
                 base = Path(env).expanduser().resolve()
             else:
-                base = (Path.home() / ".lore_editor" / "worlds" / validated).resolve()
+                base = (settings_dir() / "worlds" / validated).resolve()
         return cls._open(validated, base)
 
     @classmethod

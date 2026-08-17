@@ -165,7 +165,9 @@ def _locales_root() -> Path:
 
 
 def _settings_path() -> Path:
-    return Path.home() / ".lore_editor" / "settings.json"
+    from lore.paths import settings_dir
+
+    return settings_dir() / "settings.json"
 
 
 def load_settings() -> dict:
