@@ -32,7 +32,7 @@ Docelowo:
 | **HSL prismy** | `karmazyn_hsl` | Capability tokens — dziś `karminql:query`, miejsce na rozszerzenia |
 | **Gossip** | `cynober_gossip.py` | Sync phi-space; BubbleVFS (`.soul`) — **przyszłość** |
 
-**Stan 2026-08 (0.7.8):** cynober-db **≥ 8.2** — KAFS MEDIA PUT/GET + A_STREAM.  
+**Stan 2026-09 (0.7.9):** cynober-db **≥ 8.2.5** — KAFS MEDIA PUT/GET + A_STREAM; HSL1; nie używać PyPI 8.2.4 (brak `cynober_paths`).  
 Lore Editor UI: menu **Media** (zdjęcie / dźwięk / film) · panel ramka Media · skróty Ctrl+Shift+I/U/M · F1 temat Media.  
 API: `LoreStore.dodaj_media` / `lista_mediow` / `podglad_media` / `eksport_media`.  
 RPC: `put_media` gdy `kafs-stream`.  

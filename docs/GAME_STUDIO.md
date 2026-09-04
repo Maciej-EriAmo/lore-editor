@@ -44,7 +44,7 @@ Nie trzecie okno „Studio” (zajęte: Karmazyn Studio, Cynober Studio).
 | Element | Gdzie | Rola |
 |---------|--------|------|
 | Postać, Miejsce, Scena, relacje | lore 0.7.8 | NPC, komora, beat |
-| Media KAFS / `A_STREAM` | cynober-db ≥ 8.2 | sprite, dźwięk, tło |
+| Media KAFS / `A_STREAM` | cynober-db ≥ 8.2.5 | sprite, dźwięk, tło |
 | Dirty/hot paint | Luneta / płótno atomów | kontrakt malowania |
 | Lore Pack `.kafd` | `lore/cynober_patch.py` | kanon poziomu = kanon powieści |
 | Mapa grafu | `graph_view.py` | graf komór |

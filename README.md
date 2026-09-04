@@ -10,7 +10,8 @@ Projekcja gry i ujęcia: sibling [lore-game](../lore-game/README.md) (ten sam `.
 
 Graf lore opiera się na **dedykowanej bazie Cynober DB** (format atomów **Karmazyn**, plik `.kafd`). To nie jest zwykła sieć ani SQL — szczegóły w sekcji [Komunikacja i sieć](#komunikacja-i-sieć).
 
-**Wersja:** zobacz `lore-editor --version` lub menu **Pomoc → O programie** (skrót **F1**).
+**Wersja:** **0.7.9** — `lore-editor --version` lub **Pomoc → O programie** (**F1**).  
+**Silnik:** cynober-db **≥ 8.2.5** (nie 8.2.4 z PyPI — zepsuty wheel). Changelog: [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
 ## Instalacja
 

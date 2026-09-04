@@ -21,7 +21,7 @@
   },
   "media": {
     "title": "Media (photos, audio, video)",
-    "body": "Where: menu bar Media · shortcuts · Lore panel → Media frame.\n\nADD\n1. Select a lore entry (character, place, scene…).\n2. Media → Add photo / music / video (or + Photo in the panel).\n3. Pick a file; set a role (binding): portrait, map, voice, clip…\n4. Stored in the .kafd graph as a media atom on the entry bubble.\n\nSHORTCUTS\n  Ctrl+Shift+I   photo / image\n  Ctrl+Shift+U   music / audio\n  Ctrl+Shift+M   video / clip\n\nPREVIEW & EXPORT\n  Preview / play…   image window; audio/video via system player\n  List entry media  bindings on the entry\n  Export…           write media back to disk\n\nFORMATS\n  Images: PNG JPEG GIF WebP BMP\n  Audio:  WAV MP3 OGG FLAC M4A\n  Video:  MP4 WebM MKV MOV\n\nNETWORK (--rpc)\n  Needs cynober-server with kafs-stream (cynober-db ≥ 8.2.2).\n  Upload: put_media · list: MEDIA LIST · read: get_media.\n\nIf no entry is selected, the editor asks you to pick one from the panel list."
+    "body": "Where: menu bar Media · shortcuts · Lore panel → Media frame.\n\nADD\n1. Select a lore entry (character, place, scene…).\n2. Media → Add photo / music / video (or + Photo in the panel).\n3. Pick a file; set a role (binding): portrait, map, voice, clip…\n4. Stored in the .kafd graph as a media atom on the entry bubble.\n\nSHORTCUTS\n  Ctrl+Shift+I   photo / image\n  Ctrl+Shift+U   music / audio\n  Ctrl+Shift+M   video / clip\n\nPREVIEW & EXPORT\n  Preview / play…   image window; audio/video via system player\n  List entry media  bindings on the entry\n  Export…           write media back to disk\n\nFORMATS\n  Images: PNG JPEG GIF WebP BMP\n  Audio:  WAV MP3 OGG FLAC M4A\n  Video:  MP4 WebM MKV MOV\n\nNETWORK (--rpc)\n  Needs cynober-server with kafs-stream (cynober-db ≥ 8.2.5).\n  Upload: put_media · list: MEDIA LIST · read: get_media.\n\nIf no entry is selected, the editor asks you to pick one from the panel list."
   },
   "spell": {
     "title": "Dictionary and spelling",
@@ -41,7 +41,8 @@
   },
   "network": {
     "title": "Network: Karmazyn and Cynober DB",
-    "body": "--rpc connects to cynober-server over the Karmazyn tunnel (not plain HTTP).\nPort 8080 is the secure server, not a REST API.\n\nAuth: non-loopback hosts need user+token (LORE_RPC_USER / LORE_RPC_TOKEN or Team panel).\nMedia over the wire needs kafs-stream (cynober-db ≥ 8.2.2).\n\nChapters stay local; the lore graph (+ optional media) goes over the network."
+    "body": "--rpc connects to cynober-server over the Karmazyn tunnel (not plain HTTP).\nPort 8080 is the secure server, not a REST API.\n\nAuth: non-loopback hosts need user+token (LORE_RPC_USER / LORE_RPC_TOKEN or Team panel).\nMedia over the wire needs kafs-stream (cynober-db ≥ 8.2.5).
+Prefer ≥ 8.2.5 (8.2.4 wheel was broken: missing cynober_paths).\n\nChapters stay local; the lore graph (+ optional media) goes over the network."
   },
   "about": {
     "title": "About",

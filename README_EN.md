@@ -10,12 +10,13 @@ Play / shot projection: sibling [lore-game](../lore-game/README.md) (same `.kafd
 
 The lore graph lives in a **dedicated Cynober DB** (**Karmazyn** atom format, `.kafd` file). This is not plain SQL or a generic web API — see [Networking](#networking).
 
-**Version:** `lore-editor --version` or **Help → About** (**F1**).
+**Version:** **0.7.9** — `lore-editor --version` or **Help → About** (**F1**).  
+**Engine:** cynober-db **≥ 8.2.5** (avoid PyPI 8.2.4 — broken wheel). Changelog: [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
 ## Install
 
 ```bash
-pip install -U "cynober-db>=8.2.5"
+pip install -U "cynober-db>=8.2.5"   # do NOT stay on 8.2.4 (broken wheel)
 pip install -e .
 ```
 

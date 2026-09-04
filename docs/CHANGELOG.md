@@ -5,8 +5,19 @@ Format: skrót dla deweloperów i pisarzy. Szczegóły w README / F1.
 ## 0.7.9
 
 ### Silnik
-- Wymaganie **cynober-db ≥ 8.2.5** (hotfix `cynober_paths` w wheel; 8.2.4 z PyPI psuło `cynober_worlds` / lokalny lore).
-- Docs/pomoc: bump z 8.2.2 → 8.2.5 (HSL1, auth scrypt, KAFS jak wcześniej).
+- Wymaganie **cynober-db ≥ 8.2.5** (hotfix `cynober_paths` w wheel; **8.2.4 z PyPI psuło** `import cynober_worlds` / lokalny lore / serwer).
+- Kompatybilność z torami 8.2.4 silnika (gdy pakiet ≥8.2.5): HSL1 (szyfrowane link/cap), auth scrypt+lockout, reconnect klienta, NativeStore hydrate przez `bind`, Mazur opcjonalnie.
+- `read_kafd_vfs_meta`: nierozpoznany blob → komunikat „uszkodzony” (czytelniej dla pisarza).
+- Docs/pomoc/README/EN/F1: bump wymagań z 8.2.2 → **8.2.5**.
+- Smoke: `scripts/dev/smoke_gui_825.py` (LoreStore + okno EditorWindow).
+
+### Upgrade u pisarza
+```powershell
+pip install -U "cynober-db>=8.2.5"
+pip install -U -e C:\Users\drwis\lore-editor   # albo pip z wheel 0.7.9
+python run_lore_editor.py
+```
+**Nie** zostawiaj 8.2.4 z PyPI — brak `cynober_paths`.
 
 ## 0.7.8
 
