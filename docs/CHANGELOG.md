@@ -2,7 +2,17 @@
 
 Format: skrót dla deweloperów i pisarzy. Szczegóły w README / F1.
 
+## 0.7.9
+
+### Silnik
+- Wymaganie **cynober-db ≥ 8.2.5** (hotfix `cynober_paths` w wheel; 8.2.4 z PyPI psuło `cynober_worlds` / lokalny lore).
+- Docs/pomoc: bump z 8.2.2 → 8.2.5 (HSL1, auth scrypt, KAFS jak wcześniej).
+
 ## 0.7.8
+
+### Kierunek (docs)
+- [GAME_STUDIO.md](GAME_STUDIO.md) v0.2 — generator z opisu własnego lore; silnik = KarmazynOs + substrat.
+- Projekcja Play / ujęcie: sibling repo `lore-game` (nie trzecie Studio).
 
 ### Porządek (uczciwość)
 - RPC `lista_mediow`: błąd tunelu/serwera nie udaje pustej listy.
@@ -57,7 +67,7 @@ Format: skrót dla deweloperów i pisarzy. Szczegóły w README / F1.
 ### Sieć (cynober-db 8.2+)
 - **RPC** — czytelne błędy połączenia (HSS/HSL); ostrzeżenie bez **kafs-stream**.
 - **RpcLoreBackend.client** + `session_info()`.
-- Zależność: `cynober-db>=8.2.2`.
+- Zależność: `cynober-db>=8.2.5` (od 0.7.9; wcześniej 8.2.2+).
 
 ## 0.7.5
 

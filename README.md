@@ -4,7 +4,9 @@
 
 Edytor lore dla **pisarzy** — postacie, pomysły, wpływy, koligacje — na silniku [Cynober DB](https://github.com/Maciej-EriAmo/DBase).
 
-Narzędzie **pisarskie** (offline-first) — bez Lua, bez silnika gry.
+Narzędzie **pisarskie** (offline-first) — bez Lua, bez silnika gry.  
+Kierunek (nie w tej wersji): tryb **Edycja gry** + player — [docs/GAME_STUDIO.md](docs/GAME_STUDIO.md).  
+Projekcja gry i ujęcia: sibling [lore-game](../lore-game/README.md) (ten sam `.kafd`, nie drugi silnik).
 
 Graf lore opiera się na **dedykowanej bazie Cynober DB** (format atomów **Karmazyn**, plik `.kafd`). To nie jest zwykła sieć ani SQL — szczegóły w sekcji [Komunikacja i sieć](#komunikacja-i-sieć).
 
@@ -13,7 +15,7 @@ Graf lore opiera się na **dedykowanej bazie Cynober DB** (format atomów **Karm
 ## Instalacja
 
 ```bash
-pip install -U "cynober-db>=8.2.2"
+pip install -U "cynober-db>=8.2.5"
 pip install -e .
 ```
 
@@ -197,7 +199,7 @@ Włączasz jawnie: `lore-editor --rpc --host ADRES [--port 8080]`.
 | Sesja | **HSL** (+ KPC na serwerze) — Φ², capability, epoch |
 | Ramki | binarne length-prefix — **nie** HTTP |
 | Payload | JSON `"query"` = **KarminQL**; media = **KAFS** |
-| Wire | `Cynober-Secure-1.2` (pakiet **cynober-db ≥ 8.2.2**) |
+| Wire | `Cynober-Secure-1.2` (pakiet **cynober-db ≥ 8.2.5**) |
 | Serwer | `python -m cynober_server` (lub `cynober-server` w PATH) |
 
 #### Co się stanie, gdy L0 przejdzie na docelowe (QKD)
@@ -247,7 +249,7 @@ lore-editor --rpc --host 192.168.1.10 --port 8080 \
 | **Dołącz** | atom w bąblu → `.kafd` | `put_media` (KAFS) |
 | **Lista** | bindingi w bąblu | `MEDIA LIST "Encja"` |
 | **Podgląd** | płótno / player systemowy | `get_media` → to samo UI |
-| **Wymagania** | cynober-db | **≥ 8.2.2**, sesja z **kafs-stream** |
+| **Wymagania** | cynober-db | **≥ 8.2.5**, sesja z **kafs-stream** |
 
 Formaty: PNG/JPEG/GIF/WebP · WAV/MP3/OGG · MP4/WebM/MKV.  
 F1 → temat **Media (zdjęcia, dźwięk, film)**.  
@@ -266,7 +268,7 @@ Profil połączenia (host, port, HSS, opcjonalnie `user`/`token`) — `~/.karmaz
 
 **Uwaga bezpieczeństwa:** transport to protokół Karmazyn (HSS), nie „goły HTTP”, ale to nadal **zaufana sieć LAN** — nie wystawiaj cynober-server na publiczny internet bez tunelu/VPN. Token w `--rpc-token` widać w liście procesów; preferuj env / profil.
 
-**Wymagania cynober-db:** **≥ 8.2.2** (KAFS media, KPC/HSL, `session_info`, ZDROWIE l0/kpc). Lokalnie: `pip install -e path/to/DBase`.
+**Wymagania cynober-db:** **≥ 8.2.5** (KAFS, HSL1 encrypt, `cynober_paths` w wheel, `session_info`, ZDROWIE l0/kpc). Lokalnie: `pip install -e path/to/DBase`.
 
 ### Sync zespołu (zakładka Zespół)
 

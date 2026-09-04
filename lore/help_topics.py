@@ -280,7 +280,7 @@ FORMATY
   Wideo:  MP4 WebM MKV MOV
 
 SIEĆ (--rpc)
-  Wymaga cynober-server z kafs-stream (cynober-db ≥ 8.2.2).
+  Wymaga cynober-server z kafs-stream (cynober-db ≥ 8.2.5).
   Upload: put_media · lista: MEDIA LIST · odczyt: get_media.
 
 Bez zaznaczenia wpisu edytor poprosi o wybór z listy panelu.
@@ -456,7 +456,7 @@ AUTH (od 0.7.5)
 SERWER
   python -m cynober_server   (port 8080; zalecane na Windows bez PATH)
   albo: cynober-server       (gdy Scripts w PATH)
-  Klient: cynober-db >= 8.2.2
+  Klient: cynober-db >= 8.2.5
 
 PROFIL (opcjonalnie)
   ~/.karmazyn_client.json — host, port, user/token, ustawienia HSS
@@ -492,7 +492,7 @@ TO NIE JEST (typowe pomyłki)
     plików; nie zastępuje komunikacji Karmazyn w trybie --rpc lub Zespół.
 
 BAZA DANYCH
-  Dedykowany silnik: Cynober DB (cynober-db >= 8.2.2).
+  Dedykowany silnik: Cynober DB (cynober-db >= 8.2.5).
   Format na dysku: .kafd = Lore Pack w vfs Karmazyn.
   Zapytania: KarminQL (ukryte pod API LoreStore dla pisarza).
 
@@ -514,7 +514,7 @@ _topic(
     "O programie",
     f"""
 Lore Editor v{__version__}
-Silnik lore: Cynober DB (cynober-db >= 8.2.2) — magazyn atomów Karmazyn (.kafd)
+Silnik lore: Cynober DB (cynober-db >= 8.2.5) — magazyn atomów Karmazyn (.kafd)
 Repozytorium: github.com/Maciej-EriAmo/lore-editor
 
 Funkcje: kontekst czasowy lore, zapytania semantyczne, termodynamika wpisów,
@@ -532,7 +532,7 @@ Instalacja (pisarz — bez Pythona):
   Powieść: %USERPROFILE%\\dokumenty\\lore (nie folder instalacji)
 
 Instalacja (dev — z Pythonem):
-  pip install -U "cynober-db>=8.2.2"
+  pip install -U "cynober-db>=8.2.5"
   # Windows bez PATH: python -m cynober_server
   pip install -e .
   lore-editor

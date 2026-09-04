@@ -7,6 +7,8 @@
 **Baza:** lore-editor 0.7.x · Cynober / Karmazyn (`.kafd`) · offline-first  
 **Zasada:** kanon w grafie; modele worldgen i MG dostają **eksporty**, nie odwrotnie.
 
+**Sąsiad:** [GAME_STUDIO.md](GAME_STUDIO.md) — switch „Edycja gry”, player, rzadki zapis ujęcia `(t,x,y,T)`. Quest tutaj = wątek MG; quest w playerze = hook po eksporcie.
+
 ---
 
 ## 1. Wizja (jednym zdaniem)

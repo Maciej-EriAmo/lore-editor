@@ -68,8 +68,15 @@ def read_kafd_vfs_meta(kafd_path: Path | str) -> dict[str, Any]:
         raise RuntimeError(f"Nie odczytano meta .kafd ({path}): {e}") from e
     # store_stats połyka wyjątki do {"error": ...} — nie traktuj tego jako pustej mety
     if stats.get("error"):
+        err = str(stats["error"])
+        # cynober-db 8.2.5+: nierozpoznany blob → czytelniej „uszkodzony” dla pisarza
+        low = err.lower()
+        if "nierozpoznany" in low or "blob" in low or "xor" in low:
+            raise RuntimeError(
+                f"Plik .kafd wygląda na uszkodzony ({path}): {err}"
+            )
         raise RuntimeError(
-            f"Nie odczytano meta .kafd ({path}): {stats['error']}"
+            f"Nie odczytano meta .kafd ({path}): {err}"
         )
     meta = stats.get("meta")
     if not isinstance(meta, dict):

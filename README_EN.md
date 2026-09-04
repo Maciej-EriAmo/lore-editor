@@ -4,7 +4,9 @@
 
 Lore editor for **writers** — characters, ideas, influences, relationships — on the [Cynober DB](https://github.com/Maciej-EriAmo/DBase) engine.
 
-A **writing tool** (offline-first) — no Lua, no game engine.
+A **writing tool** (offline-first) — no Lua, no game engine.  
+Direction (not in this release): **Game edit** mode + player — [docs/GAME_STUDIO.md](docs/GAME_STUDIO.md).  
+Play / shot projection: sibling [lore-game](../lore-game/README.md) (same `.kafd`, not a second engine).
 
 The lore graph lives in a **dedicated Cynober DB** (**Karmazyn** atom format, `.kafd` file). This is not plain SQL or a generic web API — see [Networking](#networking).
 
@@ -13,7 +15,7 @@ The lore graph lives in a **dedicated Cynober DB** (**Karmazyn** atom format, `.
 ## Install
 
 ```bash
-pip install -U "cynober-db>=8.2.2"
+pip install -U "cynober-db>=8.2.5"
 pip install -e .
 ```
 
@@ -186,7 +188,7 @@ Enable explicitly: `lore-editor --rpc --host ADDR [--port 8080]`.
 | Session | **HSL** (+ KPC on server) |
 | Framing | Binary frames — **not** HTTP |
 | Payload | KarminQL JSON; media via **KAFS** |
-| Wire | `Cynober-Secure-1.2` (**cynober-db ≥ 8.2.2**) |
+| Wire | `Cynober-Secure-1.2` (**cynober-db ≥ 8.2.5**) |
 | Server | `python -m cynober_server` (or `cynober-server` if on PATH) |
 
 **When L0 becomes the target (QKD):** the **session seed** comes from a quantum link (\(k_{\mathrm{QKD}}\), HSL paper §6.4), not only from HSS-over-TCP. **Lore Editor and KarminQL stay the same** (`--rpc`, queries, media). You change how the tunnel is born, not the writing UI. See cynober-db `docs/SESSION_L0_KPC.md`.
@@ -214,7 +216,7 @@ lore-editor --rpc --host 192.168.1.10 --rpc-user writer --rpc-token secret
 
 Trusted LAN/VPN only — do not expose cynober-server on the public internet without a tunnel. Prefer env/profile over `--rpc-token` (visible in process list).
 
-**cynober-db:** require **≥ 8.2.2** (KAFS media, KPC/HSL, `session_info`, health l0/kpc). Local: `pip install -e path/to/DBase`.
+**cynober-db:** require **≥ 8.2.5** (KAFS, HSL1 encrypt, `cynober_paths` in wheel, `session_info`, health l0/kpc). Local: `pip install -e path/to/DBase`.
 
 If `cynober-server` is not on PATH (Windows): `python -m cynober_server`.
 
@@ -236,7 +238,7 @@ If `cynober-server` is not on PATH (Windows): `python -m cynober_server`.
 | **Attach** | atom on bubble → `.kafd` | `put_media` (KAFS) |
 | **List** | bindings on bubble | `MEDIA LIST "Entity"` |
 | **Preview** | canvas / system player | `get_media` → same UI |
-| **Requires** | cynober-db | **≥ 8.2.2**, **kafs-stream** session |
+| **Requires** | cynober-db | **≥ 8.2.5**, **kafs-stream** session |
 
 Formats: PNG/JPEG/GIF/WebP · WAV/MP3/OGG · MP4/WebM/MKV.  
 F1 → topic **Media (photos, audio, video)**.  
