@@ -12,7 +12,7 @@ $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Write-Host "=== Lore Editor — instalacja ===" -ForegroundColor Cyan
 
 Write-Host "Instalacja pakietów Python..."
-pip install --upgrade "cynober-db>=8.0.1"
+pip install --upgrade "cynober-db>=8.2.5"
 pip install --upgrade -e $RepoRoot
 
 $Python = (Get-Command python).Source

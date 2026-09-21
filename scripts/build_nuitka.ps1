@@ -26,7 +26,7 @@ Write-Host "=== Lore Editor $Version - Nuitka standalone ===" -ForegroundColor C
 # pip pisze ostrzezenia na stderr - nie przerywaj buildu
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-python -m pip install --upgrade "nuitka" "ordered-set" "zstandard" "cynober-db>=8.0.1" "python-docx>=1.1.0" "spylls>=0.1.7"
+python -m pip install --upgrade "nuitka" "ordered-set" "zstandard" "cynober-db>=8.2.5" "python-docx>=1.1.0" "spylls>=0.1.7"
 if ($LASTEXITCODE -ne 0) {
     $ErrorActionPreference = $prevEap
     throw "pip install failed: $LASTEXITCODE"
@@ -46,6 +46,7 @@ $modules = @(
 )
 
 $dataDir = Join-Path $RepoRoot "lore\data"
+$localesDir = Join-Path $RepoRoot "lore\locales"
 $include = @(
     "--include-package=lore",
     "--include-package-data=lore",
@@ -54,7 +55,9 @@ $include = @(
     "--include-package=lxml",
     # podgląd JPEG/PNG w karmazyn_media_preview
     "--include-package=PIL",
-    "--include-data-dir=${dataDir}=lore/data"
+    "--include-data-dir=${dataDir}=lore/data",
+    # EN UI + help (PL jest wbudowany w i18n/core.py)
+    "--include-data-dir=${localesDir}=lore/locales"
 )
 $include += $modules | ForEach-Object { "--include-module=$_" }
 
@@ -116,6 +119,22 @@ if (-not $SkipZip -and -not $OneFile -and (Test-Path $DistFolder)) {
     Compress-Archive -Path (Join-Path $DistFolder "*") -DestinationPath $ZipPath -CompressionLevel Optimal
     $zmb = [math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
     Write-Host ("ZIP: {0} ({1} MB)" -f $ZipPath, $zmb) -ForegroundColor Green
+
+    # Stare artefakty -> dist/archive (żeby pisarz nie wziął 0.7.5 zamiast bieżącej)
+    $Archive = Join-Path $Dist "archive"
+    New-Item -ItemType Directory -Force -Path $Archive | Out-Null
+    Get-ChildItem -Path $Dist -File -ErrorAction SilentlyContinue |
+        Where-Object {
+            ($_.Name -like "LoreEditor-*-win64.zip" -or $_.Name -like "LoreEditor-*-win64.exe") -and
+            $_.Name -ne $ZipName
+        } |
+        ForEach-Object {
+            $dest = Join-Path $Archive $_.Name
+            if (Test-Path $dest) { Remove-Item $dest -Force }
+            Move-Item $_.FullName $dest -Force
+            Write-Host ("Archiwum: {0}" -f $dest) -ForegroundColor DarkYellow
+        }
+
     Write-Host ""
     Write-Host "Dla pisarza (bez Pythona):" -ForegroundColor Cyan
     Write-Host "  1. Rozpakuj ZIP albo: .\scripts\install_standalone.ps1"

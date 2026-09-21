@@ -11,12 +11,20 @@ Format: skrót dla deweloperów i pisarzy. Szczegóły w README / F1.
 - Docs/pomoc/README/EN/F1: bump wymagań z 8.2.2 → **8.2.5**.
 - Smoke: `scripts/dev/smoke_gui_825.py` (LoreStore + okno EditorWindow).
 
+### Release / standalone
+- Rebuild Nuitka → `dist/LoreEditor-0.7.9-win64.zip` (zastępuje artefakt 0.7.5).
+- `scripts/build_nuitka.ps1` / `install_writer.ps1`: pin `cynober-db>=8.2.5`.
+- Checklista: [docs/RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+
 ### Upgrade u pisarza
 ```powershell
 pip install -U "cynober-db>=8.2.5"
 pip install -U -e C:\Users\drwis\lore-editor   # albo pip z wheel 0.7.9
 python run_lore_editor.py
 ```
+**Standalone (bez Pythona):** `.\scripts\build_nuitka.ps1` potem `.\scripts\install_standalone.ps1`  
+albo rozpakuj `dist\LoreEditor-0.7.9-win64.zip`.
+
 **Nie** zostawiaj 8.2.4 z PyPI — brak `cynober_paths`.
 
 ## 0.7.8

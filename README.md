@@ -522,7 +522,8 @@ python -m unittest discover -s tests -v
 | PL | EN | Temat |
 |----|-----|--------|
 | [README.md](README.md) | [README_EN.md](README_EN.md) | Główna dokumentacja |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | — | Historia wersji (**0.7.6**, …) |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | — | Historia wersji (**0.7.9**, …) |
+| [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) | — | Checklista przed zipem / standalone |
 | [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | [docs/LANGUAGE_PLUGINS.md](docs/LANGUAGE_PLUGINS.md) | Locale packs, klucze `ui.json` |
 | [docs/SLOWNIK_I_PISOWNIA.md](docs/SLOWNIK_I_PISOWNIA.md) | [docs/SPELLING_AND_DICTIONARY.md](docs/SPELLING_AND_DICTIONARY.md) | Słownik nazw, F7, SJP / EN |
 | [docs/KIERUNEK_MULTIMEDIA_STREAMING.md](docs/KIERUNEK_MULTIMEDIA_STREAMING.md) | [docs/MULTIMEDIA_STREAMING_ROADMAP.md](docs/MULTIMEDIA_STREAMING_ROADMAP.md) | Multimedia / KAFS (plan) |

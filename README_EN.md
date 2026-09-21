@@ -388,7 +388,8 @@ python -m unittest discover -s tests -v
 
 | File | Topic |
 |------|--------|
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release notes (**0.7.6**, …) |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Release notes (**0.7.9**, …) |
+| [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) | Pre-zip / standalone checklist |
 | [docs/LANGUAGE_PLUGINS.md](docs/LANGUAGE_PLUGINS.md) | Locale packs (EN) |
 | [docs/PLUGINY_JEZYKOWE.md](docs/PLUGINY_JEZYKOWE.md) | Locale packs (PL) |
 | [docs/SPELLING_AND_DICTIONARY.md](docs/SPELLING_AND_DICTIONARY.md) | Spelling (EN) |

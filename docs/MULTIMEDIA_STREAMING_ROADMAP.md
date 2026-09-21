@@ -32,8 +32,8 @@ Target:
 | **HSL prisms** | `karmazyn_hsl` | Capability tokens (`karminql:query` today) |
 | **Gossip** | `cynober_gossip.py` | Phi-space sync; BubbleVFS (`.soul`) — **future** |
 
-**Status 2026-08 (0.7.8):** local attach + preview work; menu **Media** (photo/audio/video) + panel buttons + shortcuts.  
-RPC: KAFS `put_media` / `get_media` / `MEDIA LIST` when `kafs-stream` is negotiated (cynober-db ≥ 8.2).  
+**Status 2026-09 (0.7.9):** local attach + preview work; menu **Media** (photo/audio/video) + panel buttons + shortcuts.  
+RPC: KAFS `put_media` / `get_media` / `MEDIA LIST` when `kafs-stream` is negotiated (cynober-db **≥ 8.2.5**; avoid PyPI 8.2.4).  
 **Remaining gap:** team replicate media index (phase 6); stream preview polish over RPC.
 
 ---

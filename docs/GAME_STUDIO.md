@@ -3,7 +3,7 @@
 **[English → §13](#13-english-summary)**
 
 **Status:** kierunek (nie zaimplementowany) · **v0.2** · 2026-08-14  
-**Edytor:** [Lore Editor](../README.md) 0.7.8+ (domyślnie tryb pisarz)  
+**Edytor:** [Lore Editor](../README.md) 0.7.9+ (domyślnie tryb pisarz)  
 **Silnik:** [KarmazynOs](https://github.com/Maciej-EriAmo/KarmazynOs) + **substrat** (atomy, bąble, `T`, tick, reach-GC, `.kafd`)  
 **Projekcja:** Mrowisko / SDL — luneta na Store, nie drugi silnik  
 **Sąsiad:** [Adventure Studio](ADVENTURE_STUDIO_PLAN.md) — Quest = wątek MG; w playerze quest = hook po eksporcie
@@ -43,7 +43,7 @@ Nie trzecie okno „Studio” (zajęte: Karmazyn Studio, Cynober Studio).
 
 | Element | Gdzie | Rola |
 |---------|--------|------|
-| Postać, Miejsce, Scena, relacje | lore 0.7.8 | NPC, komora, beat |
+| Postać, Miejsce, Scena, relacje | lore 0.7.9 | NPC, komora, beat |
 | Media KAFS / `A_STREAM` | cynober-db ≥ 8.2.5 | sprite, dźwięk, tło |
 | Dirty/hot paint | Luneta / płótno atomów | kontrakt malowania |
 | Lore Pack `.kafd` | `lore/cynober_patch.py` | kanon poziomu = kanon powieści |
@@ -64,7 +64,7 @@ Wyłączony domyślnie. Nie otwiera nowego programu.
 | W UI | Kiedy |
 |------|--------|
 | Komora = Miejsce + `prowadzi_do` + pozycja | G1 — zapis w `.kafd` |
-| Aktor = Postać + `sprite` + `(x,y)` | G1 + media 0.7.8 |
+| Aktor = Postać + `sprite` + `(x,y)` | G1 + media 0.7.9 |
 | Graf komór | mapa + filtr |
 | **Uruchom demo** | G2 — woła `lore-game play` na tym samym `.kafd` |
 | Quest / kroki | po Adventure P1–P2 |
