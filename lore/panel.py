@@ -4,10 +4,11 @@ Panel lore dla edytora — Tkinter, bez KarminQL.
 
 from __future__ import annotations
 
+import io
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from lore.backend import _is_loopback_host
 from lore.graph_view import open_graph_window
@@ -38,6 +39,42 @@ _POLA_EDYCJI: dict[str, tuple[str, ...]] = {
 def pola_do_edycji(typ: str) -> tuple[str, ...]:
     """Pola lore edytowalne w panelu — zależne od typu wpisu."""
     return _POLA_EDYCJI.get(typ, _POLA_EDYCJI[TypLore.INNE.value])
+
+
+_RODZAJE_MEDIÓW = ("media", "media_stream", "media_stream_head")
+_PODGLAD_PX = 220
+
+
+def rekord_mediow(value: Any) -> bool:
+    """True, gdy wartość z POKAŻ to metadane atomu grafiki, nie tekst postaci."""
+    return isinstance(value, dict) and value.get("kind") in _RODZAJE_MEDIÓW
+
+
+def miniatura_z_bajtow(data: bytes, mime: str = "") -> Optional[tk.PhotoImage]:
+    """Miniatura do karty postaci. None, gdy bajty nie są obrazem."""
+    if not data:
+        return None
+    low = (mime or "").lower()
+    if low and not low.startswith("image/"):
+        return None
+    try:
+        from PIL import Image, ImageTk
+
+        image = Image.open(io.BytesIO(data))
+        image.thumbnail((_PODGLAD_PX, _PODGLAD_PX))
+        return ImageTk.PhotoImage(image)
+    except Exception:
+        if not (low in ("image/png", "image/gif", "") or data[:8] == b"\x89PNG\r\n\x1a\n"):
+            return None
+        try:
+            photo = tk.PhotoImage(data=data)
+        except tk.TclError:
+            return None
+        w, h = photo.width(), photo.height()
+        factor = max(1, (max(w, h) + _PODGLAD_PX - 1) // _PODGLAD_PX)
+        if factor > 1:
+            photo = photo.subsample(factor, factor)
+        return photo
 
 
 class _EditEntityDialog(tk.Toplevel):
@@ -234,6 +271,9 @@ class LorePanel(ttk.Frame):
         style_text(self._detail, height=5)
         self._detail.pack(fill="x", pady=(4, 0))
         self._detail.configure(state="disabled")
+        self._media_preview = ttk.Frame(tab_lore)
+        self._media_preview.pack(fill="x", pady=(2, 0))
+        self._detail_photos: list[tk.PhotoImage] = []
 
         tab_search = ttk.Frame(self._notebook, padding=4)
         self._notebook.add(tab_search, text=t("panel.tab_search"))
@@ -351,19 +391,31 @@ class LorePanel(ttk.Frame):
             for k, v in sorted(data.items()):
                 if k.startswith("_") or k in ("BĄBEL", POLE_STANY) or v in (None, ""):
                     continue
+                if rekord_mediow(v):
+                    continue
                 lines.append(f"{k}: {v}")
+            images: list[tuple[str, tk.PhotoImage]] = []
             try:
                 media = self._lore.lista_mediow(name)
                 if media:
                     lines.append("— media —")
                     for m in media:
+                        role = str(m.get("binding") or "")
+                        mime = str(m.get("mime") or "")
                         lines.append(
-                            f"  · {m.get('binding')}: {m.get('mime')} "
-                            f"({m.get('size')} B)"
+                            f"  · {role}: {mime} ({m.get('size')} B)"
                         )
+                        if mime.lower().startswith("image/") and role:
+                            try:
+                                raw, got_mime = self._lore.odczyt_media(name, role)
+                            except Exception:
+                                continue
+                            photo = miniatura_z_bajtow(raw, got_mime or mime)
+                            if photo is not None:
+                                images.append((role, photo))
             except Exception as e:
                 lines.append(f"— media: {e}")
-            self._set_detail("\n".join(lines))
+            self._set_detail("\n".join(lines), images)
         except Exception as e:
             self._set_detail(str(e))
 
@@ -376,11 +428,27 @@ class LorePanel(ttk.Frame):
         else:
             self._dlg_edytuj()
 
-    def _set_detail(self, text: str) -> None:
+    def _set_detail(
+        self,
+        text: str,
+        images: Optional[list[tuple[str, tk.PhotoImage]]] = None,
+    ) -> None:
         self._detail.configure(state="normal")
         self._detail.delete("1.0", tk.END)
         self._detail.insert("1.0", text)
         self._detail.configure(state="disabled")
+        for child in self._media_preview.winfo_children():
+            child.destroy()
+        # Referencja musi żyć: Tk kasuje obraz, gdy zniknie ostatni Pythonowy uchwyt.
+        self._detail_photos = []
+        for role, photo in images or []:
+            self._detail_photos.append(photo)
+            ttk.Label(
+                self._media_preview,
+                image=photo,
+                text=role,
+                compound="top",
+            ).pack(anchor="w", pady=2)
 
     def _dlg_postac(self) -> None:
         nazwa = simpledialog.askstring("Postać", "Imię / nazwa postaci:", parent=self)

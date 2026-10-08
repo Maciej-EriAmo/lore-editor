@@ -28,6 +28,23 @@ class TestLoreStoreLocal(unittest.TestCase):
         store._ensure_project()
         return store
 
+    def test_nieudany_zapis_przy_zamknieciu_zostawia_swiat(self):
+        lore = self._store()
+        lore.dodaj_postac("Anna", notatka="zostaje")
+
+        def boom(*_a, **_k):
+            raise OSError("dysk pełny")
+
+        lore.zapisz = boom  # type: ignore[method-assign]
+        try:
+            with self.assertRaises(LoreBackendError):
+                lore.close(zapisz_lore=True)
+            self.assertIsNotNone(lore._backend._world)
+            self.assertIn("Anna", lore.lista_po_typie("Postać"))
+        finally:
+            lore.zapisz = LoreStore.zapisz.__get__(lore, LoreStore)  # type: ignore[method-assign]
+            lore.close(zapisz_lore=False)
+
     def test_dodaj_postac_i_szukaj(self):
         lore = self._store()
         lore.dodaj_postac("Anna", notatka="Bohaterka")

@@ -40,6 +40,16 @@ from lore.typography import (
 _AUTOSAVE_MS = 60_000
 
 
+def karty_bez_pliku(tabs: dict) -> list[str]:
+    """Id kart, których plik był zapisany, a po restore już go nie ma."""
+    gone: list[str] = []
+    for tab_id, tab in tabs.items():
+        path = getattr(tab, "path", None)
+        if path and not Path(path).is_file():
+            gone.append(tab_id)
+    return gone
+
+
 def _word_count(text: str) -> int:
     return len(re.findall(r"\S+", text))
 
@@ -856,6 +866,15 @@ class EditorWindow:
             self._close_tab_by_id(tab_id)
         return "break"
 
+    def _drop_tab(self, tab_id: str) -> None:
+        """Zamknij kartę bez pytania i bez zapisu."""
+        tab = self._tabs.get(tab_id)
+        if tab is None:
+            return
+        self._notebook.forget(tab_id)
+        tab.frame.destroy()
+        del self._tabs[tab_id]
+
     def _close_tab_by_id(self, tab_id: str) -> bool:
         tab = self._tabs.get(tab_id)
         if tab is None:
@@ -1087,29 +1106,50 @@ class EditorWindow:
         open_history_window(self.root, self._lore, on_restored=self._odswiez_z_dysku)
 
     def _odswiez_z_dysku(self) -> None:
-        """Po przywróceniu snapshotu — przeładuj otwarte karty z plików."""
+        """Po przywróceniu snapshotu — przeładuj karty, których plik jeszcze jest.
+
+        Plik usunięty przez pełny restore nie zostaje w edytorze: zapis takiej
+        karty odtworzyłby rozdział spoza snapshota.
+        """
         failed: list[str] = []
+        removed: list[str] = []
+        for tab_id in karty_bez_pliku(self._tabs):
+            tab = self._tabs[tab_id]
+            removed.append(Path(tab.path).name)
+            self._drop_tab(tab_id)
         for tab_id, tab in list(self._tabs.items()):
-            if not tab.path or not Path(tab.path).is_file():
+            if not tab.path:
                 continue
+            path = Path(tab.path)
             try:
                 content, enc = read_text_smart(tab.path)
             except (OSError, ValueError) as e:
-                failed.append(f"{Path(tab.path).name}: {e}")
+                failed.append(f"{path.name}: {e}")
                 continue
             tab.text.delete("1.0", tk.END)
             tab.text.insert("1.0", content)
             tab.encoding = enc
             tab.dirty = False
             self._update_tab_title(tab_id)
+        if not self._tabs:
+            self._new_tab()
         self._panel.odswiez()
         self._update_window_title()
         self._update_status()
+        notes: list[str] = []
+        if removed:
+            notes.append(
+                "Zamknięto karty, których plików nie ma po przywróceniu:\n"
+                + "\n".join(removed[:8])
+            )
         if failed:
+            notes.append(
+                "Nie przeładowano kart:\n" + "\n".join(failed[:5])
+            )
+        if notes:
             messagebox.showwarning(
                 "Historia",
-                "Przywrócono snapshot, ale nie przeładowano kart:\n"
-                + "\n".join(failed[:5]),
+                "Przywrócono snapshot.\n\n" + "\n\n".join(notes),
                 parent=self.root,
             )
 

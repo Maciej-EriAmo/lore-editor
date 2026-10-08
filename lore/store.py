@@ -111,13 +111,16 @@ class LoreStore:
         zapisz_lore=False → porzuć dirty w RAM (bez zapisu na dysk).
         Błędy zapisu/close nie są połykane.
         """
-        save_err: Exception | None = None
         if zapisz_lore:
             try:
                 # zawsze ZAPISZ gdy proszono — indeksy + spójność .kafd
                 self.zapisz()
             except Exception as e:
-                save_err = e
+                # Świat zostaje w RAM. Puszczenie go tutaj gubiło edycje,
+                # gdy pisarz po błędzie zapisu odmawiał zmiany katalogu.
+                raise LoreBackendError(
+                    f"Zapis lore przy zamykaniu nieudany: {e}"
+                ) from e
         close_err: Exception | None = None
         try:
             # NIGDY auto-flush tu: przy zapisz_lore=False to byłby wyciek zapisu
@@ -128,8 +131,6 @@ class LoreStore:
                 close_fn()
         except Exception as e:
             close_err = e
-        if save_err is not None:
-            raise LoreBackendError(f"Zapis lore przy zamykaniu nieudany: {save_err}") from save_err
         if close_err is not None:
             raise LoreBackendError(f"Błąd zamykania backendu: {close_err}") from close_err
 

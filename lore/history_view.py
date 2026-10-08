@@ -148,7 +148,7 @@ class HistoryWindow(tk.Toplevel):
         self._reload()
         messagebox.showinfo(
             "Historia",
-            "Przywrócono (pełny restore). Otwarte karty odświeżone z dysku.",
+            "Przywrócono (pełny restore). Karty zgodne z plikami na dysku.",
             parent=self,
         )
 

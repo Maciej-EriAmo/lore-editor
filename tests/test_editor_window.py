@@ -2,7 +2,7 @@
 
 import unittest
 
-from lore.editor_window import _word_count
+from lore.editor_window import _word_count, karty_bez_pliku
 
 
 class TestEditorWindow(unittest.TestCase):
@@ -15,6 +15,18 @@ class TestEditorWindow(unittest.TestCase):
 
     def test_word_count_polish(self):
         self.assertEqual(_word_count("Zażółć gęślą jaźń."), 3)
+
+    def test_karta_bez_pliku_po_restore(self):
+        class Tab:
+            def __init__(self, path):
+                self.path = path
+
+        missing = Tab("C:/nie-ma-takiego-rozdzialu-lore.txt")
+        kept = Tab("")
+        self.assertEqual(
+            karty_bez_pliku({"gone": missing, "new": kept}),
+            ["gone"],
+        )
 
 
 if __name__ == "__main__":
